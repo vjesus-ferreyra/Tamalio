@@ -1,0 +1,19 @@
+# =====================================================================
+# Tamalio · Ejemplo de fichero de fuentes en texto plano
+# ---------------------------------------------------------------------
+# Uso:   tamalio descargar -a ejemplos/fuentes.txt
+#
+# - Una URL por línea.
+# - «#» al inicio de la línea, o tras un espacio, es un comentario.
+# - Las líneas vacías se ignoran y las URL repetidas se cargan una vez.
+# - Para opciones por fuente (formato, metadatos…) usa el formato .jsonc.
+# =====================================================================
+
+# YouTube Music (pista suelta)
+https://music.youtube.com/watch?v=FB9u24ZpDek
+
+# Álbum de YouTube Music
+https://www.youtube.com/playlist?list=OLAK5uy_mspJKZ25TV32cAhLcJi40QtsihifLQ_oM
+
+https://soundcloud.com/klaypex/sets/loosedirt          # set de SoundCloud
+https://ghostdata.bandcamp.com/track/fluorite-fault    # pista de Bandcamp

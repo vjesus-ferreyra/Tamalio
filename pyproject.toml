@@ -1,0 +1,86 @@
+# =====================================================================
+# Tamalio · Configuración del proyecto (PEP 621) para uv, Ruff y pytest
+# =====================================================================
+
+[project]
+name = "tamalio"
+version = "0.1.0"
+description = "Extractor de música Hi-Fi desde YouTube, YouTube Music, SoundCloud y Bandcamp."
+readme = "README.md"
+requires-python = ">=3.15"
+authors = [{ name = "Víctor Jesús Torres Ferreyra (Quetzal Nocturno)" }]
+keywords = ["musica", "audio", "hi-fi", "yt-dlp", "youtube-music", "soundcloud", "bandcamp", "cli"]
+classifiers = [
+    "Environment :: Console",
+    "Natural Language :: Spanish",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Private :: Do Not Upload",
+]
+dependencies = [
+    # «default» incluye yt-dlp-ejs (scripts para resolver los retos JS de YouTube);
+    # «curl-cffi» habilita la suplantación de navegador recomendada por yt-dlp.
+    "yt-dlp[default,curl-cffi]>=2026.10.26",
+    # psycopg 3 con binarios precompilados (no requiere libpq de desarrollo).
+    "psycopg[binary]>=3.3",
+    "requests>=2.32",
+    "mutagen>=1.48",
+]
+
+[project.scripts]
+tamalio = "tamalio.__main__:principal"
+
+[project.urls]
+Repositorio = "https://github.com/QuetzalNocturno/tamalio"
+
+# Herramientas solo para desarrollo: «uv sync» las instala por defecto.
+[dependency-groups]
+dev = ["pytest>=9.0", "ruff>=0.15"]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.14"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------------
+# Ruff: linter y formateador
+# ---------------------------------------------------------------------
+[tool.ruff]
+target-version = "py315"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # orden de importaciones (isort)
+    "UP",       # sintaxis moderna (pyupgrade)
+    "B",        # errores probables (bugbear)
+    "SIM",      # simplificaciones
+    "C4",       # comprensiones
+    "PTH",      # pathlib en lugar de os.path
+    "RUF",      # reglas propias de Ruff
+]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # Caracteres «ambiguos» (—, «», ×) son intencionales en español.
+    "B008",                         # Llamadas en valores por defecto de dataclasses.
+    "E501",                         # La longitud la controla el formateador.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PTH"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+# ---------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "postgres: requiere un PostgreSQL de pruebas (variable TAMALIO_BD_PRUEBAS)",
+    "ffmpeg: requiere FFmpeg instalado",
+]

@@ -1,0 +1,52 @@
+# =====================================================================
+# Tamalio · Integración continua
+# Ejecuta Ruff y pytest (incluidas las pruebas con FFmpeg y PostgreSQL)
+# en cada push y pull request.
+# =====================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: tamalio
+          POSTGRES_PASSWORD: tamalio
+          POSTGRES_DB: tamalio_pruebas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tamalio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TAMALIO_BD_PRUEBAS: postgresql://tamalio:tamalio@localhost:5432/tamalio_pruebas
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Instalar FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Instalar Python 3.15 y dependencias
+        run: |
+          uv python install 3.15
+          uv sync --locked || uv sync
+
+      - name: Ruff (linter)
+        run: uv run ruff check .
+
+      - name: Ruff (formato)
+        run: uv run ruff format --check .
+
+      - name: Pruebas
+        run: uv run pytest

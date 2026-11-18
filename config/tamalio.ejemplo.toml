@@ -1,0 +1,74 @@
+# =====================================================================
+# Tamalio · Configuración de ejemplo
+# ---------------------------------------------------------------------
+# Copia este fichero a la carpeta de configuración de tu sistema:
+#
+#   Linux    ~/.config/tamalio/tamalio.toml
+#   macOS    ~/Library/Application Support/tamalio/tamalio.toml
+#   Windows  %APPDATA%\tamalio\tamalio.toml
+#
+# o indícalo con «tamalio --config RUTA» / la variable TAMALIO_CONFIG.
+# Todas las opciones son opcionales: los valores de abajo son los
+# predeterminados. Las variables de entorno TAMALIO_BD_URL,
+# TAMALIO_DESTINO y TAMALIO_USUARIO tienen prioridad sobre este fichero.
+# =====================================================================
+
+[general]
+# Nombre de la subcarpeta del usuario dentro de la carpeta de música.
+# Vacío = usuario del sistema operativo.
+usuario = ""
+# Carpeta de música. Vacío = ~/Música (Linux y macOS) o ~/Music (Windows).
+# Estructura resultante: <carpeta_destino>/<usuario>/{YouTube,SoundCloud,Bandcamp}/…
+carpeta_destino = ""
+# original | flac | alac | wav | mp3 | opus | aac | vorbis
+# «original» guarda el audio tal cual lo entrega la plataforma (sin pérdida adicional).
+formato_salida = "original"
+# Agrega a «artistas» los invitados detectados en el título («feat. X»).
+agregar_invitados_a_artistas = true
+
+[red]
+# Navegador a suplantar con curl_cffi (chrome, edge, safari…). "" = desactivado.
+suplantar_navegador = "chrome"
+# Espera aleatoria (segundos) antes de cada pista, para parecer humano.
+espera_minima = 3.0
+espera_maxima = 9.0
+# Cada cuántas pistas (rango aleatorio) se hace una pausa larga y cuánto dura.
+pausa_larga_cada = [8, 15]
+pausa_larga = [25.0, 70.0]
+# Espera aleatoria entre las peticiones internas de yt-dlp (se sortea en cada cliente).
+espera_entre_peticiones = [0.6, 1.8]
+# Reintentos de red de yt-dlp por fichero/fragmento.
+reintentos = 10
+# Reintentos cuando la plataforma detecta un bot (con espera exponencial).
+reintentos_bloqueo = 2
+# Límite de velocidad, p. ej. "2M" o "500K". Vacío = sin límite.
+# limite_velocidad = "2M"
+# Segundos de espera de cada conexión.
+tiempo_espera = 30.0
+
+[javascript]
+# Intérprete para los retos JavaScript de YouTube: quickjs (recomendado aquí), deno, node o bun.
+motor = "quickjs"
+# Ruta al ejecutable «qjs» si no está en el PATH.
+# ruta = "/usr/local/bin/qjs"
+# Permitir que yt-dlp descargue los scripts EJS si el paquete yt-dlp-ejs falta:
+# ["ejs:github"] o ["ejs:npm"]. Vacío = no descargar nada.
+componentes_remotos = []
+
+[caratula]
+# Recorta al centro (1:1) las miniaturas 16:9 de los videos de YouTube.
+recortar_videos = true
+# Calidad JPEG de FFmpeg: 2 (máxima) … 31 (mínima).
+calidad_jpeg = 2
+
+[sesiones]
+# Ficheros de cookies (formato Netscape) por plataforma. También se pueden
+# registrar con «tamalio sesion establecer PLATAFORMA RUTA» o cuando
+# Tamalio los pida al detectar un bloqueo.
+# youtube = "~/cookies/youtube.txt"
+# soundcloud = "~/cookies/soundcloud.txt"
+# bandcamp = "~/cookies/bandcamp.txt"
+
+[base_datos]
+# Cadena de conexión de PostgreSQL (libpq).
+url = "postgresql://tamalio:tamalio@localhost:5432/tamalio"

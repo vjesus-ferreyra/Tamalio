@@ -1,0 +1,50 @@
+// Catálogo musical exportado por Tamalio 0.1.0.
+// Contiene metadatos y enlaces de origen, no el audio.
+// Impórtalo en otro equipo con:  tamalio catalogo importar <este fichero> --descargar
+{
+  "$schema": "../src/tamalio/recursos/esquemas/catalogo.schema.json",
+  "version": 1,
+  "aplicacion": { "nombre": "Tamalio", "version": "0.1.0" },
+  "exportado_en": "2026-11-17T22:28:00-06:00",
+  "usuario": "quetzal",
+  "equipo": "escritorio",
+  "total": 2,
+  "pistas": [
+    {
+      "plataforma": "bandcamp",
+      "id_externo": "4125386728",
+      "url": "https://ghostdata.bandcamp.com/track/beyond-eternity-feat-skye-light-2",
+      "titulo": "Beyond Eternity (feat. Skye Light)",
+      "album": "Symphony of the Shepherdess",
+      "artistas": ["GHOST DATA", "Skye Light"],
+      "artistas_album": ["GHOST DATA"],
+      "numero_pista": 1,
+      "total_pistas": 15,
+      "generos": ["Aether Pop", "Electronic", "Dreamsynth"],
+      "anio": 2022,
+      "duracion": 265.333,
+      "es_sencillo": false,
+      "caratula": "https://f4.bcbits.com/img/a3054183310_0.jpg",
+      "formato": "original",
+      "ruta_relativa": "Bandcamp/GHOST DATA/Symphony of the Shepherdess (2022)/01 - Beyond Eternity (feat. Skye Light).mp3"
+    },
+    {
+      "plataforma": "youtube",
+      "id_externo": "FB9u24ZpDek",
+      "url": "https://www.youtube.com/watch?v=FB9u24ZpDek",
+      "titulo": "Horn of Salvation",
+      "album": "Horn of Salvation",
+      "artistas": ["ABOKAI"],
+      "artistas_album": ["ABOKAI"],
+      "numero_pista": 1,
+      "total_pistas": 1,
+      "generos": [],
+      "anio": 2026,
+      "duracion": 230,
+      "es_sencillo": false,
+      "caratula": "https://i.ytimg.com/vi_webp/FB9u24ZpDek/maxresdefault.webp",
+      "formato": "flac",
+      "ruta_relativa": "YouTube/ABOKAI/Horn of Salvation (2026)/01 - Horn of Salvation.flac"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+# =====================================================================
+# Tamalio · Atributos de Git
+# ---------------------------------------------------------------------
+# Normaliza los finales de línea a LF en el repositorio, sin importar si
+# se trabaja desde Windows, macOS o Linux.
+# =====================================================================
+
+* text=auto eol=lf
+
+# Código y texto
+*.py      text diff=python
+*.toml    text
+*.json    text
+*.jsonc   text
+*.sql     text
+*.md      text diff=markdown
+*.txt     text
+*.yml     text
+*.yaml    text
+
+# Guiones de Windows: se conservan con CRLF.
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# Binarios (sin conversión ni diff de texto)
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.webp    binary
+*.gif     binary
+*.ico     binary
+*.flac    binary
+*.opus    binary
+*.ogg     binary
+*.mp3     binary
+*.m4a     binary
+*.wav     binary
+*.zip     binary
+
+# El fichero de bloqueo de uv se genera solo: se marca para que GitHub
+# lo colapse en las revisiones.
+uv.lock   linguist-generated=true
+
+# Los JSON de prueba son datos, no código del proyecto.
+tests/fixtures/*.json  linguist-vendored

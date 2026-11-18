@@ -1,0 +1,82 @@
+{
+ "id": "968977920",
+ "title": "GHOST DATA - Fluorite Fault",
+ "thumbnail": "https://f4.bcbits.com/img/a1074683926_5.jpg",
+ "uploader": "GHOST DATA",
+ "uploader_id": "ghostdata",
+ "uploader_url": "https://ghostdata.bandcamp.com",
+ "timestamp": 1763062664,
+ "release_timestamp": null,
+ "duration": 609.375,
+ "track": "Fluorite Fault",
+ "track_number": null,
+ "track_id": "968977920",
+ "artist": "GHOST DATA",
+ "album": null,
+ "album_artist": "GHOST DATA",
+ "tags": [
+  "aether pop",
+  "electronic",
+  "progressive house",
+  "dreamsynth",
+  "Houston"
+ ],
+ "webpage_url": "https://ghostdata.bandcamp.com/track/fluorite-fault",
+ "original_url": "https://ghostdata.bandcamp.com/track/fluorite-fault",
+ "webpage_url_basename": "fluorite-fault",
+ "webpage_url_domain": "ghostdata.bandcamp.com",
+ "extractor": "Bandcamp",
+ "extractor_key": "Bandcamp",
+ "playlist": null,
+ "playlist_index": null,
+ "thumbnails": [
+  {
+   "url": "https://f4.bcbits.com/img/a1074683926_5.jpg",
+   "id": "0"
+  }
+ ],
+ "display_id": "968977920",
+ "fulltitle": "GHOST DATA - Fluorite Fault",
+ "duration_string": "10:09",
+ "upload_date": "20251113",
+ "release_year": null,
+ "album_artists": [
+  "GHOST DATA"
+ ],
+ "artists": [
+  "GHOST DATA"
+ ],
+ "requested_subtitles": null,
+ "_has_drm": null,
+ "epoch": 1794889077,
+ "format_id": "mp3-128",
+ "ext": "mp3",
+ "vcodec": "none",
+ "acodec": "mp3",
+ "abr": 128,
+ "protocol": "https",
+ "audio_ext": "mp3",
+ "video_ext": "none",
+ "vbr": 0,
+ "tbr": 128,
+ "resolution": "audio only",
+ "aspect_ratio": null,
+ "filesize_approx": 9750000,
+ "format": "mp3-128 - audio only",
+ "_type": "video",
+ "_version": {
+  "version": "2026.10.26",
+  "current_git_head": null,
+  "release_git_head": "c91f8de0bfb3577894abad716eaaa01659e6bd14",
+  "repository": "yt-dlp/yt-dlp"
+ },
+ "formats": [
+  {
+   "format_id": "mp3-128",
+   "ext": "mp3",
+   "acodec": "mp3",
+   "vcodec": "none",
+   "abr": 128
+  }
+ ]
+}

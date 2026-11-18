@@ -1,0 +1,161 @@
+{
+ "uploader": "Ryleo",
+ "uploader_id": "68495662",
+ "uploader_url": "https://soundcloud.com/kadenza-hitti",
+ "timestamp": 1498275492,
+ "title": "John Kenza - Nightmare",
+ "track": "John Kenza - Nightmare",
+ "description": "»Download Album: https://poniesatdawn.bandcamp.com/album/guardians\n\nThe newest Ponies at Dawn is just released so be sure to go check it out! Its full of a ton of amazing songs that are all amazing quality and variety! I promise there is something for everyone! \n\nI hope you all like my track! I tried something a little different and it very fun track to make!! I had a lot of inspirations from Dayb",
+ "duration": 435.277,
+ "webpage_url": "https://soundcloud.com/kadenza-hitti/john-kenza-nightmare",
+ "license": "all-rights-reserved",
+ "view_count": 23524,
+ "like_count": 420,
+ "comment_count": 7,
+ "repost_count": 35,
+ "modified_timestamp": 1514735092,
+ "genres": [
+  "Trance"
+ ],
+ "tags": [
+  "Progressive Trance",
+  "Glitch",
+  "Progressive House",
+  "Ambient",
+  "Instrumental"
+ ],
+ "artists": [
+  "John Kenza"
+ ],
+ "id": "329754876",
+ "thumbnails": [
+  {
+   "id": "mini",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-mini.jpg",
+   "width": 16,
+   "height": 16,
+   "resolution": "16x16"
+  },
+  {
+   "id": "tiny",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-tiny.jpg",
+   "width": 20,
+   "height": 20,
+   "resolution": "20x20"
+  },
+  {
+   "id": "small",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-small.jpg",
+   "width": 32,
+   "height": 32,
+   "resolution": "32x32"
+  },
+  {
+   "id": "badge",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-badge.jpg",
+   "width": 47,
+   "height": 47,
+   "resolution": "47x47"
+  },
+  {
+   "id": "t67x67",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-t67x67.jpg",
+   "width": 67,
+   "height": 67,
+   "resolution": "67x67"
+  },
+  {
+   "id": "large",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-large.jpg",
+   "width": 100,
+   "height": 100,
+   "resolution": "100x100"
+  },
+  {
+   "id": "t300x300",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-t300x300.jpg",
+   "width": 300,
+   "height": 300,
+   "resolution": "300x300"
+  },
+  {
+   "id": "crop",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-crop.jpg",
+   "width": 400,
+   "height": 400,
+   "resolution": "400x400"
+  },
+  {
+   "id": "t500x500",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-t500x500.jpg",
+   "width": 500,
+   "height": 500,
+   "resolution": "500x500"
+  },
+  {
+   "id": "original",
+   "url": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-original.jpg",
+   "preference": 10
+  }
+ ],
+ "original_url": "https://soundcloud.com/kadenza-hitti/john-kenza-nightmare",
+ "webpage_url_basename": "john-kenza-nightmare",
+ "webpage_url_domain": "soundcloud.com",
+ "extractor": "soundcloud",
+ "extractor_key": "Soundcloud",
+ "playlist": null,
+ "playlist_index": null,
+ "thumbnail": "https://i1.sndcdn.com/artworks-000230304474-aoml0r-original.jpg",
+ "display_id": "329754876",
+ "fulltitle": "John Kenza - Nightmare",
+ "duration_string": "7:15",
+ "upload_date": "20170624",
+ "modified_date": "20171231",
+ "release_year": null,
+ "artist": "John Kenza",
+ "genre": "Trance",
+ "requested_subtitles": null,
+ "_has_drm": null,
+ "epoch": 1794889845,
+ "format_id": "hls_aac_160k",
+ "ext": "m4a",
+ "acodec": "mp4a.40.2",
+ "vcodec": "none",
+ "abr": 160,
+ "protocol": "m3u8_native",
+ "container": "m4a_dash",
+ "quality": 0,
+ "format_note": null,
+ "preference": null,
+ "audio_ext": "m4a",
+ "video_ext": "none",
+ "vbr": 0,
+ "tbr": 160,
+ "resolution": "audio only",
+ "aspect_ratio": null,
+ "filesize_approx": 8705539,
+ "format": "hls_aac_160k - audio only",
+ "_type": "video",
+ "_version": {
+  "version": "2026.10.26",
+  "current_git_head": null,
+  "release_git_head": "c91f8de0bfb3577894abad716eaaa01659e6bd14",
+  "repository": "yt-dlp/yt-dlp"
+ },
+ "formats": [
+  {
+   "format_id": "hls_aac_96k",
+   "ext": "m4a",
+   "acodec": "mp4a.40.2",
+   "vcodec": "none",
+   "abr": 96
+  },
+  {
+   "format_id": "hls_aac_160k",
+   "ext": "m4a",
+   "acodec": "mp4a.40.2",
+   "vcodec": "none",
+   "abr": 160
+  }
+ ]
+}

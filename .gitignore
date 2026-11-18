@@ -1,0 +1,94 @@
+# =====================================================================
+# Tamalio · Ficheros que Git debe ignorar
+# =====================================================================
+
+# --- Python ----------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+pip-wheel-metadata/
+*.spec
+
+# --- Entornos virtuales y uv -----------------------------------------
+.venv/
+venv/
+env/
+.python-version.local
+# uv.lock SÍ se versiona (instalaciones reproducibles); no lo agregues aquí.
+
+# --- Herramientas de desarrollo --------------------------------------
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# --- Editores e IDE --------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+.zed/
+
+# --- Sistemas operativos ---------------------------------------------
+.DS_Store
+.AppleDouble
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Secretos y datos personales (¡nunca subirlos!) ------------------
+# Ficheros de cookies / tokens de sesión de las plataformas.
+cookies*.txt
+*cookies*.txt
+*.cookies
+sesiones/
+# Variables de entorno locales.
+.env
+.env.*
+!.env.ejemplo
+# Configuración personal (la de ejemplo sí se versiona).
+tamalio.toml
+!config/tamalio.ejemplo.toml
+# Catálogos exportados del usuario (los de ejemplos/ sí se versionan).
+*.catalogo.jsonc
+catalogo-*.jsonc
+mi-catalogo*.jsonc
+
+# --- Audio, carátulas y temporales de descarga -----------------------
+*.part
+*.ytdl
+*.parcial.*
+*.flac
+*.opus
+*.ogg
+*.mp3
+*.m4a
+*.wav
+*.webm
+*.mka
+*.aac
+# Las imágenes de documentación sí se versionan.
+*.jpg
+*.webp
+!docs/**/*.jpg
+!docs/**/*.webp
+
+# --- Registros -------------------------------------------------------
+*.log
+logs/

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/QuetzalNocturno/tamalio/main/src/tamalio/recursos/esquemas/catalogo.schema.json",
+  "title": "Tamalio · Catálogo exportable",
+  "description": "Catálogo musical personal para exportar («tamalio catalogo exportar») e importar («tamalio catalogo importar») entre equipos. No contiene audio: solo metadatos, enlace de origen y ruta relativa de cada pista.",
+  "type": "object",
+  "required": ["version", "pistas"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "description": "Versión del formato.", "const": 1 },
+    "aplicacion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nombre": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "exportado_en": { "description": "Fecha y hora ISO 8601 de la exportación.", "type": "string" },
+    "usuario": { "description": "Usuario que exportó el catálogo.", "type": "string" },
+    "equipo": { "description": "Nombre del equipo de origen.", "type": "string" },
+    "total": { "description": "Número de pistas.", "type": "integer", "minimum": 0 },
+    "pistas": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pista" }
+    }
+  },
+  "$defs": {
+    "lista_texto": { "type": "array", "items": { "type": "string" } },
+    "pista": {
+      "type": "object",
+      "required": ["plataforma", "id_externo", "url", "titulo"],
+      "additionalProperties": false,
+      "properties": {
+        "plataforma": { "enum": ["youtube", "soundcloud", "bandcamp"] },
+        "id_externo": { "description": "ID de la pista en la plataforma.", "type": "string", "minLength": 1 },
+        "url": { "description": "Enlace canónico de la pista.", "type": "string", "pattern": "^https?://" },
+        "titulo": { "type": "string", "minLength": 1 },
+        "album": { "type": ["string", "null"] },
+        "artistas": { "$ref": "#/$defs/lista_texto" },
+        "artistas_album": { "$ref": "#/$defs/lista_texto" },
+        "numero_pista": { "type": ["integer", "null"], "minimum": 1 },
+        "total_pistas": { "type": ["integer", "null"], "minimum": 1 },
+        "generos": { "$ref": "#/$defs/lista_texto" },
+        "anio": { "type": ["integer", "null"], "minimum": 1877, "maximum": 3000 },
+        "duracion": { "description": "Segundos.", "type": ["number", "null"], "minimum": 0 },
+        "es_sencillo": { "type": "boolean" },
+        "caratula": { "description": "URL de la carátula en alta resolución.", "type": ["string", "null"] },
+        "formato": {
+          "enum": ["original", "flac", "alac", "wav", "mp3", "opus", "aac", "vorbis", null]
+        },
+        "ruta_relativa": {
+          "description": "Ruta del fichero relativa a la biblioteca del usuario, con «/» como separador.",
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}

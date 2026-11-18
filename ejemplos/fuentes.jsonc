@@ -1,0 +1,52 @@
+// =====================================================================
+// Tamalio · Ejemplo de fichero de fuentes (JSONC)
+// ---------------------------------------------------------------------
+// Uso:   tamalio descargar -a ejemplos/fuentes.jsonc
+//
+// JSONC = JSON + comentarios (// y /* */) + comas finales opcionales.
+// El «$schema» permite que VS Code, JetBrains, Zed, etc. validen y
+// autocompleten el fichero mientras lo escribes. Si copias este fichero
+// fuera del repositorio, usa la URL pública del esquema:
+// https://raw.githubusercontent.com/QuetzalNocturno/tamalio/main/src/tamalio/recursos/esquemas/fuentes.schema.json
+// =====================================================================
+{
+  "$schema": "../src/tamalio/recursos/esquemas/fuentes.schema.json",
+  "version": 1,
+  "nombre": "Lote de ejemplo",
+  "descripcion": "Una pista y un álbum de cada plataforma soportada.",
+
+  // Se aplica a toda fuente que no indique lo contrario.
+  "predeterminados": {
+    "formato": "original" // Máxima fidelidad: sin recodificar.
+  },
+
+  "fuentes": [
+    // ── YouTube / YouTube Music ────────────────────────────────────────
+    // Forma corta: solo la URL. music.youtube.com y www.youtube.com son
+    // la misma plataforma; el ID de «watch?v=» es idéntico en ambas.
+    "https://music.youtube.com/watch?v=FB9u24ZpDek",
+
+    // Álbum de YouTube Music (las listas «OLAK5uy_…» son álbumes).
+    {
+      "url": "https://www.youtube.com/playlist?list=OLAK5uy_mspJKZ25TV32cAhLcJi40QtsihifLQ_oM",
+      "formato": "flac",
+      "comentario": "K/DA — FIRESTARTER",
+      // YouTube no publica géneros: se pueden agregar a mano.
+      "metadatos": { "generos": ["K-Pop", "Pop"] }
+    },
+
+    // ── SoundCloud ─────────────────────────────────────────────────────
+    "https://soundcloud.com/kadenza-hitti/john-kenza-nightmare",
+    { "url": "https://soundcloud.com/klaypex/sets/loosedirt", "comentario": "Klaypex — Loose Dirt (2011)" },
+
+    // ── Bandcamp ───────────────────────────────────────────────────────
+    "https://ghostdata.bandcamp.com/track/fluorite-fault",
+    {
+      "url": "https://ghostdata.bandcamp.com/album/symphony-of-the-shepherdess",
+      "formato": "opus"
+    },
+
+    /* Una fuente se puede desactivar sin borrarla: */
+    { "url": "https://ghostdata.bandcamp.com/album/otro-album", "omitir": true },
+  ],
+}

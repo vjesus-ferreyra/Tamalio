@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/QuetzalNocturno/tamalio/main/src/tamalio/recursos/esquemas/fuentes.schema.json",
+  "title": "Tamalio · Fichero de fuentes",
+  "description": "Lista de enlaces (fuentes) para descargar en masa con «tamalio descargar -a FICHERO». Se escribe en JSONC: JSON que admite comentarios // y /* */ y comas finales.",
+  "type": "object",
+  "required": ["version", "fuentes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "URL o ruta de este esquema, para que el editor valide y autocomplete.",
+      "type": "string"
+    },
+    "version": {
+      "description": "Versión del formato del fichero.",
+      "const": 1
+    },
+    "nombre": {
+      "description": "Nombre libre del lote (solo informativo).",
+      "type": "string"
+    },
+    "descripcion": {
+      "description": "Notas libres sobre el lote.",
+      "type": "string"
+    },
+    "predeterminados": {
+      "description": "Opciones que se aplican a cada fuente que no las defina.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "formato": { "$ref": "#/$defs/formato" },
+        "metadatos": { "$ref": "#/$defs/metadatos" }
+      }
+    },
+    "fuentes": {
+      "description": "Enlaces a descargar. Cada elemento es una URL (forma corta) o un objeto con opciones.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [{ "$ref": "#/$defs/url" }, { "$ref": "#/$defs/fuente" }]
+      }
+    }
+  },
+  "$defs": {
+    "url": {
+      "description": "Enlace de YouTube, YouTube Music, SoundCloud o Bandcamp (pista, álbum o lista).",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(https?://)?[^\\s]+$",
+      "examples": [
+        "https://music.youtube.com/watch?v=FB9u24ZpDek",
+        "https://www.youtube.com/playlist?list=OLAK5uy_mspJKZ25TV32cAhLcJi40QtsihifLQ_oM",
+        "https://soundcloud.com/klaypex/sets/loosedirt",
+        "https://ghostdata.bandcamp.com/album/symphony-of-the-shepherdess"
+      ]
+    },
+    "formato": {
+      "description": "Formato de salida. «original» conserva el audio de la plataforma sin recodificar (máxima fidelidad).",
+      "enum": ["original", "flac", "alac", "wav", "mp3", "opus", "aac", "vorbis"]
+    },
+    "plataforma": {
+      "description": "Fuerza la plataforma; útil para artistas de Bandcamp con dominio propio.",
+      "enum": ["youtube", "youtube_music", "soundcloud", "bandcamp"]
+    },
+    "texto_o_lista": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      ]
+    },
+    "metadatos": {
+      "description": "Sobrescribe los metadatos extraídos. Se aplican a TODAS las pistas de la fuente.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "titulo": { "description": "Nombre de la canción.", "type": "string", "minLength": 1 },
+        "album": { "description": "Nombre del álbum.", "type": "string", "minLength": 1 },
+        "artistas": { "description": "Artista(s) de la canción.", "$ref": "#/$defs/texto_o_lista" },
+        "artistas_album": { "description": "Artista(s) del álbum.", "$ref": "#/$defs/texto_o_lista" },
+        "generos": { "description": "Género(s) musical(es).", "$ref": "#/$defs/texto_o_lista" },
+        "anio": { "description": "Año de lanzamiento.", "type": "integer", "minimum": 1877, "maximum": 3000 },
+        "numero_pista": { "description": "Número de pista dentro del álbum.", "type": "integer", "minimum": 1 },
+        "total_pistas": { "description": "Total de pistas del álbum.", "type": "integer", "minimum": 1 },
+        "es_sencillo": { "description": "Guarda la pista en la carpeta «Sencillos».", "type": "boolean" },
+        "caratula": { "description": "URL de una carátula alternativa.", "type": "string", "pattern": "^https?://" }
+      }
+    },
+    "fuente": {
+      "description": "Fuente con opciones propias.",
+      "type": "object",
+      "required": ["url"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "$ref": "#/$defs/url" },
+        "plataforma": { "$ref": "#/$defs/plataforma" },
+        "formato": { "$ref": "#/$defs/formato" },
+        "metadatos": { "$ref": "#/$defs/metadatos" },
+        "comentario": { "description": "Nota libre; aparece en «tamalio cola».", "type": "string" },
+        "omitir": { "description": "true = ignorar esta fuente sin borrarla del fichero.", "type": "boolean" }
+      }
+    }
+  }
+}
