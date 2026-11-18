@@ -145,7 +145,10 @@ class GestorDescargas:
                 raise
             return resumen
         except ErrorTamalio as error:
+            # Falló la extracción de la fuente completa: cuenta como fallo en el resumen
+            # (y hace que el proceso termine con código 1).
             tarea.fallar(error.mensaje)
+            resumen.fallidas += 1
             resumen.errores.append(error.mensaje)
             observador.al_fallar_pista(None, error.mensaje)
 

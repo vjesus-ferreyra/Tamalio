@@ -41,5 +41,9 @@ class RegistroYtDlp:
         self._registro.warning(self._limpiar(mensaje).removeprefix("WARNING: "))
 
     def error(self, mensaje: str) -> None:
-        """Errores; Tamalio además los recibe como excepciones."""
-        self._registro.error(self._limpiar(mensaje).removeprefix("ERROR: "))
+        """
+        Errores de yt-dlp. Se registran solo en el fichero (nivel INFO) porque
+        Tamalio también los recibe como excepción y la vista ya los muestra;
+        así no aparecen duplicados en la terminal.
+        """
+        self._registro.info("error: %s", self._limpiar(mensaje).removeprefix("ERROR: "))

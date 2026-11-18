@@ -27,8 +27,12 @@ formato_salida = "original"
 agregar_invitados_a_artistas = true
 
 [red]
-# Navegador a suplantar con curl_cffi (chrome, edge, safari…). "" = desactivado.
-suplantar_navegador = "chrome"
+# Suplantación de navegador con curl_cffi:
+#   "auto"   → (recomendado) cada extractor de yt-dlp decide cuándo usarla.
+#   "chrome", "edge", "safari"… → la fuerza en TODAS las peticiones; ojo: Bandcamp
+#              responde con «Client Challenge» si se fuerza (Tamalio reintenta sin ella).
+#   ""       → nunca suplantar.
+suplantar_navegador = "auto"
 # Espera aleatoria (segundos) antes de cada pista, para parecer humano.
 espera_minima = 3.0
 espera_maxima = 9.0

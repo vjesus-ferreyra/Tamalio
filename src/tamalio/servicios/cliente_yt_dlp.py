@@ -50,11 +50,15 @@ class ClienteYtDlp:
     #: Fragmentos de mensajes de error que indican bloqueo o sesión requerida.
     _PATRONES_BLOQUEO = re.compile(
         r"sign in to confirm|not a bot|captcha|login required|use --cookies|cookies for the authentication|"
-        r"requires authentication|http error 429|too many requests|rate[- ]limit",
+        r"requires authentication|http error 429|too many requests|rate[- ]limit|client challenge",
         re.IGNORECASE,
     )
     _PATRON_LIMITE = re.compile(r"http error 429|too many requests|rate[- ]limit", re.IGNORECASE)
     _PATRON_CADUCADO = re.compile(r"http error 403|forbidden|expired", re.IGNORECASE)
+    #: Página de desafío anti-bots (Bandcamp la devuelve si se fuerza la suplantación).
+    _PATRON_DESAFIO = re.compile(r"client challenge", re.IGNORECASE)
+    #: Valores de ``[red] suplantar_navegador`` que NO fuerzan un navegador global.
+    _SIN_FORZAR = frozenset({"", "auto", "no", "ninguno"})
 
     #: Avisar una sola vez por proceso si la suplantación no está disponible.
     _aviso_suplantacion_emitido = False
@@ -108,8 +112,12 @@ class ClienteYtDlp:
         }
         if self._config.red_limite_velocidad:
             opciones["ratelimit"] = self._velocidad_en_bytes(self._config.red_limite_velocidad)
-        if self._config.red_suplantar_navegador:
-            opciones["impersonate"] = ImpersonateTarget.from_str(self._config.red_suplantar_navegador)
+        # «auto»: cada extractor de yt-dlp decide cuándo suplantar (Bandcamp, por ejemplo,
+        # prueba primero sin suplantar y luego con curl_cffi). Forzarlo globalmente rompe
+        # esa estrategia y provoca la página «Client Challenge».
+        objetivo = (self._config.red_suplantar_navegador or "").strip().lower()
+        if objetivo not in self._SIN_FORZAR:
+            opciones["impersonate"] = ImpersonateTarget.from_str(objetivo)
         if self._cookies:
             opciones["cookiefile"] = str(self._cookies)
         return opciones
@@ -141,11 +149,17 @@ class ClienteYtDlp:
             ErrorDeteccionBot: Si la plataforma pidió verificación o sesión.
             ErrorTamalio: Para cualquier otro fallo de ``yt-dlp``.
         """
-        with self._crear(self.opciones(fuente.solo_pista)) as ydl:
-            try:
-                info = ydl.extract_info(fuente.url, download=False)
-            except (DownloadError, YoutubeDLError) as error:
-                raise self._traducir(error, fuente.plataforma) from error
+        opciones = self.opciones(fuente.solo_pista)
+        try:
+            info = self._extraer_con(opciones, fuente)
+        except ErrorTamalio as error:
+            # Si se forzó la suplantación y el sitio respondió con un desafío, se
+            # reintenta una vez dejando que el extractor decida por sí mismo.
+            if "impersonate" not in opciones or not self._PATRON_DESAFIO.search(error.mensaje):
+                raise
+            registro.info("Desafío anti-bots con suplantación forzada; se reintenta sin ella.")
+            opciones.pop("impersonate")
+            info = self._extraer_con(opciones, fuente)
         if not info:
             raise ErrorTamalio(f"yt-dlp no devolvió información para «{fuente.url}».")
         return info
@@ -204,6 +218,14 @@ class ClienteYtDlp:
     # ================================================================== #
     # Auxiliares
     # ================================================================== #
+    def _extraer_con(self, opciones: dict[str, Any], fuente: Fuente) -> dict[str, Any] | None:
+        """Ejecuta ``extract_info`` con las opciones dadas y traduce los errores."""
+        with self._crear(opciones) as ydl:
+            try:
+                return ydl.extract_info(fuente.url, download=False)
+            except (DownloadError, YoutubeDLError) as error:
+                raise self._traducir(error, fuente.plataforma) from error
+
     def _crear_hook(
         self,
         al_progreso: Callable[[ProgresoDescarga], None] | None,
@@ -242,6 +264,8 @@ class ClienteYtDlp:
     def _traducir(self, error: Exception, plataforma: Plataforma) -> ErrorTamalio:
         """Convierte los errores de ``yt-dlp`` en excepciones propias con mensaje claro."""
         mensaje = re.sub(r"\x1b\[[0-9;]*m", "", str(error)).removeprefix("ERROR: ").strip()
+        # Se quita la coletilla «please report this issue on … yt-dlp -U».
+        mensaje = re.split(r";\s*please report this issue", mensaje, flags=re.IGNORECASE)[0].strip()
         if self._PATRONES_BLOQUEO.search(mensaje):
             return ErrorDeteccionBot(plataforma, mensaje, limite_peticiones=bool(self._PATRON_LIMITE.search(mensaje)))
         return ErrorTamalio(f"yt-dlp: {mensaje}")

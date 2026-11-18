@@ -99,10 +99,12 @@ class VerificadorDependencias:
 
     def _curl_cffi(self) -> ResultadoVerificacion:
         """Verifica que ``yt-dlp`` pueda suplantar el navegador configurado."""
-        objetivo = self._config.red_suplantar_navegador
+        objetivo = (self._config.red_suplantar_navegador or "").strip().lower()
         nombre = f"Suplantación ({objetivo or 'desactivada'})"
-        if not objetivo:
+        if objetivo in {"", "no", "ninguno"}:
             return ResultadoVerificacion(nombre, True, "desactivada en la configuración")
+        # En «auto» basta con que curl_cffi ofrezca algún navegador (se prueba con chrome).
+        objetivo = "chrome" if objetivo == "auto" else objetivo
         try:
             import curl_cffi  # noqa: F401  (solo se comprueba que cargue)
         except Exception as error:

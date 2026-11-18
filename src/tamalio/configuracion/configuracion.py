@@ -38,7 +38,7 @@ class Configuracion:
     agregar_invitados_a_artistas: bool = True
 
     # [red] ----------------------------------------------------------------
-    red_suplantar_navegador: str = "chrome"
+    red_suplantar_navegador: str = "auto"
     red_espera_minima: float = 3.0
     red_espera_maxima: float = 9.0
     red_pausa_larga_cada: tuple[int, int] = (8, 15)
