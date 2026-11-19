@@ -164,7 +164,8 @@ Derivadas de las respuestas reales de `yt-dlp` incluidas en `tests/fixtures/`.
 | Pista suelta de YouTube | Miniatura de mayor preferencia, recortada al centro en 1:1. |
 | SoundCloud «Artista - Título» | Se quita el prefijo si coincide con `artists`. El `uploader` no se usa como artista si hay `artists`. |
 | SoundCloud *set* | Todas las pistas comparten la carátula `original` del *set*; número = posición. |
-| Bandcamp `tags` | Solo las etiquetas en minúsculas son géneros; la ubicación («Houston») se descarta. |
+| Bandcamp `tags` | Solo las etiquetas en minúsculas son géneros; la ubicación («Houston») y los sellos («Ed Banger Records») se descartan. |
+| Bandcamp con varios artistas en un texto | «A, B, C & D & the E» → «A», «B», «C», «D & the E» (un «&» seguido de artículo no separa). |
 | Bandcamp carátula `…_5.jpg` | Se pide `…_0.jpg` (original), con `…_10.jpg` (1200 px) de respaldo. |
 | Invitados «feat./ft.» | El título se normaliza a «Canción (feat. X, Y)» y X, Y se agregan a los artistas. |
 | Pista sin álbum | Álbum = título (convención de *singles*) y se guarda en la carpeta «Sencillos». |

@@ -169,3 +169,40 @@ def test_feat_entre_parentesis_conserva_su_posicion(detector):
     (pista,) = FABRICA.obtener(Plataforma.YOUTUBE).normalizar(info, detector.detectar("https://youtu.be/FB9u24ZpDek"))
     assert pista.titulo == "Canción (feat. Ana & Luis) [Remix]"
     assert pista.artistas == ["Yo", "Ana", "Luis"]
+
+
+def test_bandcamp_separa_artistas_unidos_y_descarta_sellos(detector):
+    """Caso real: «Flower In A Hurricane» de Justice (registro de --debug)."""
+    info = {
+        "id": "468230362",
+        "title": "Justice, Tame Impala, SZA, Grand Theft Auto VI & King Gizzard & the Lizard Wizard - "
+        "Flower In A Hurricane (feat. Tame Impala, SZA, King Gizzard & the Lizard Wizard) [from GTAVI]",
+        "track": "Flower In A Hurricane (feat. Tame Impala, SZA, King Gizzard & the Lizard Wizard) [from GTAVI]",
+        # yt-dlp entrega el texto del artista cortado solo por comas:
+        "artists": ["Justice", "Tame Impala", "SZA", "Grand Theft Auto VI & King Gizzard & the Lizard Wizard"],
+        "tags": ["alternative", "electronic", "ed banger records", "electro", "Paris"],
+        "webpage_url": "https://etjusticepourtous.bandcamp.com/track/flower-in-a-hurricane",
+    }
+    fuente = detector.detectar(info["webpage_url"])
+    (pista,) = FABRICA.obtener(Plataforma.BANDCAMP).normalizar(info, fuente)
+    assert pista.artistas == [
+        "Justice",
+        "Tame Impala",
+        "SZA",
+        "Grand Theft Auto VI",
+        "King Gizzard & the Lizard Wizard",
+    ]
+    assert pista.generos == ["Alternative", "Electronic", "Electro"]
+    assert pista.titulo.startswith("Flower In A Hurricane (feat.")
+
+
+def test_bandcamp_respeta_artista_del_album_con_ampersand(detector):
+    info = {
+        "id": "1",
+        "track": "Canción",
+        "artists": ["Simon & Garfunkel"],
+        "album_artist": "Simon & Garfunkel",
+        "webpage_url": "https://x.bandcamp.com/track/cancion",
+    }
+    (pista,) = FABRICA.obtener(Plataforma.BANDCAMP).normalizar(info, detector.detectar(info["webpage_url"]))
+    assert pista.artistas == ["Simon & Garfunkel"]

@@ -17,12 +17,20 @@ class ExtractorBandcamp(ExtractorBase):
       «electronic») con la ubicación del artista (con mayúsculas: «Houston»).
       Solo las etiquetas en minúsculas se toman como géneros y se escriben en
       formato título («Aether Pop»).
+    - Las etiquetas que son sellos discográficos («Ed Banger Records»,
+      «Monstercat Recordings»…) tampoco son géneros y se descartan.
+    - El artista puede venir como un solo texto con varios nombres
+      («Justice, Tame Impala, SZA, Grand Theft Auto VI & King Gizzard & the
+      Lizard Wizard»). ``yt-dlp`` solo lo corta por comas, así que Tamalio
+      vuelve a separar cada parte respetando los «& the …» de los nombres de banda.
     - La miniatura ``…_5.jpg`` mide 700 px; cambiando el sufijo a ``_0`` se
       obtiene la imagen **original** a máxima resolución (``_10`` = 1200 px).
     """
 
     # Sufijo de tamaño de las imágenes de Bandcamp: a1234567890_5.jpg
     _PATRON_TAMANO = re.compile(r"_(\d+)\.(jpg|png)$")
+    # Etiquetas que nombran un sello discográfico, no un género.
+    _PATRON_SELLO = re.compile(r"\b(?:records|recordings|rec\.|label|tapes|discos|disquera)$", re.IGNORECASE)
 
     @property
     def plataforma(self) -> Plataforma:
@@ -33,10 +41,27 @@ class ExtractorBandcamp(ExtractorBase):
         """Las URL ``/album/…`` llegan con el extractor ``BandcampAlbum``."""
         return info.get("extractor_key") == "BandcampAlbum" or "/album/" in str(info.get("webpage_url", ""))
 
+    def _artistas_crudos(self, entrada: dict[str, Any]) -> list[str]:
+        """
+        Separa cada artista declarado también por «&», «x» o «×».
+
+        Los artistas del álbum se protegen para no partir nombres como
+        «Simon & Garfunkel» cuando la plataforma los declara así.
+        """
+        protegidos = [str(a) for a in entrada.get("album_artists") or []]
+        if entrada.get("album_artist"):
+            protegidos.append(str(entrada["album_artist"]))
+        separados: list[str] = []
+        for nombre in super()._artistas_crudos(entrada):
+            separados.extend(self._dividir_artistas(nombre, protegidos))
+        return self._sin_duplicados(separados)
+
     def _generos(self, entrada: dict[str, Any]) -> list[str]:
-        """Etiquetas en minúsculas (géneros), sin la ubicación; máximo cinco."""
+        """Etiquetas en minúsculas (géneros), sin la ubicación ni sellos; máximo cinco."""
         generos = [
-            etiqueta.title() for etiqueta in (entrada.get("tags") or []) if etiqueta and etiqueta == etiqueta.lower()
+            etiqueta.title()
+            for etiqueta in (entrada.get("tags") or [])
+            if etiqueta and etiqueta == etiqueta.lower() and not self._PATRON_SELLO.search(etiqueta)
         ]
         return self._sin_duplicados(generos)[:5] or super()._generos(entrada)
 
