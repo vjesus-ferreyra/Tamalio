@@ -414,6 +414,33 @@ sequenceDiagram
 | `c` | Cancelar tarea | La tarea queda *cancelada*; se sigue con la siguiente tarea. |
 | `q` / `Ctrl+C` | Salir | La tarea actual queda *pausada*; `tamalio reanudar` continúa. |
 
+### Cancelación inmediata
+
+`yt-dlp` no llama a ningún *hook* mientras espera una respuesta de red ni
+durante la extracción de un álbum, así que una orden podía tardar lo que
+tardara esa petición. Por eso `ClienteYtDlp` ejecuta cada operación en un hilo
+secundario y el hilo principal vigila el `ControlEjecucion` cada 0.1 s:
+
+```mermaid
+sequenceDiagram
+    participant P as Hilo principal
+    participant H as Hilo de yt-dlp
+    participant R as RegistroYtDlp / hook
+    participant CE as ControlEjecucion
+    P->>H: iniciar operación (extraer o descargar)
+    loop cada 0.1 s mientras H trabaja
+        P->>CE: punto_control()
+    end
+    Note over CE: el usuario pulsa [c]
+    CE-->>P: ErrorDescargaCancelada
+    P->>R: abandonar.set()
+    P-->>P: la tarea queda cancelada al instante
+    H->>R: siguiente mensaje o fragmento
+    R-->>H: DownloadCancelled (el hilo termina solo)
+```
+
+Mientras tanto, la vista muestra la orden pendiente con su tiempo transcurrido.
+
 ---
 
 ## 8. Exportar e importar el catálogo
@@ -447,8 +474,8 @@ flowchart LR
     raiz[src/tamalio] --> app[aplicacion.py · __main__.py]
     raiz --> cfg[configuracion/<br/>configuracion · rutas_sistema]
     raiz --> exc[excepciones/<br/>6 excepciones]
-    raiz --> mod[modelos/<br/>14 entidades y enumeraciones]
-    raiz --> itf[interfaces/<br/>7 contratos abstractos]
+    raiz --> mod[modelos/<br/>15 entidades y enumeraciones]
+    raiz --> itf[interfaces/<br/>8 contratos abstractos]
     raiz --> ext[extractores/<br/>base · youtube · soundcloud · bandcamp · fábrica · contexto]
     raiz --> srv[servicios/<br/>22 servicios]
     raiz --> rep[repositorios/<br/>conexión + 3 repositorios]

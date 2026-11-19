@@ -1,6 +1,7 @@
 """Carga y valida la configuración de Tamalio desde ``tamalio.toml`` y variables de entorno."""
 
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -64,6 +65,9 @@ class Configuracion:
     # [base_datos] ---------------------------------------------------------
     bd_url: str = URL_BD_PREDETERMINADA
 
+    # Modo depuración (--debug o TAMALIO_DEBUG=1) ---------------------------
+    depuracion: bool = False
+
     # Rutas derivadas ------------------------------------------------------
     carpeta_cache: Path = field(default_factory=lambda: RutasSistema().carpeta_cache())
     carpeta_estado: Path = field(default_factory=lambda: RutasSistema().carpeta_estado())
@@ -74,6 +78,12 @@ class Configuracion:
     def raiz_biblioteca(self) -> Path:
         """``<carpeta_destino>/<usuario>``: raíz de la biblioteca personal."""
         return self.carpeta_destino / self.usuario
+
+    def resumen(self) -> dict[str, Any]:
+        """Configuración efectiva para el modo depuración (la contraseña de la BD se oculta)."""
+        datos = {campo.name: getattr(self, campo.name) for campo in fields(self)}
+        datos["bd_url"] = re.sub(r"(://[^:/@]+:)[^@]+@", r"\1****@", self.bd_url)
+        return datos
 
     # ------------------------------------------------------------------ #
     @classmethod
@@ -163,6 +173,8 @@ class Configuracion:
             self.carpeta_destino = Path(os.environ["TAMALIO_DESTINO"]).expanduser()
         if os.environ.get("TAMALIO_USUARIO"):
             self.usuario = os.environ["TAMALIO_USUARIO"]
+        if os.environ.get("TAMALIO_DEBUG", "").lower() in {"1", "true", "si", "sí", "yes"}:
+            self.depuracion = True
 
     def _validar(self) -> None:
         """Comprueba la coherencia de los rangos numéricos."""

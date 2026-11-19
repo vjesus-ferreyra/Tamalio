@@ -49,10 +49,14 @@ class ExtractorBase(Extractor):
     _PATRON_INVITADOS_PARENTESIS = re.compile(
         r"\s*[\(\[]\s*(?:feat\.?|ft\.?|featuring)\s+(?P<invitados>[^\)\]]+)[\)\]]", re.IGNORECASE
     )
-    # Invitados sin paréntesis al final: «Canción ft. X, Y».
-    _PATRON_INVITADOS_LIBRE = re.compile(r"\s+(?:feat\.?|ft\.?|featuring)\s+(?P<invitados>.+)$", re.IGNORECASE)
-    # Separadores entre varios invitados («X, Y & Z»).
-    _SEPARADOR_INVITADOS = re.compile(r"\s*,\s*|\s+&\s+")
+    # Invitados sin paréntesis: «Canción ft. X, Y» (se respeta un sufijo «[…]» o «(…)» posterior).
+    _PATRON_INVITADOS_LIBRE = re.compile(
+        r"\s+(?:feat\.?|ft\.?|featuring)\s+(?P<invitados>[^\(\)\[\]]+?)(?P<resto>\s*[\(\[].*)?$", re.IGNORECASE
+    )
+    # Separadores entre varios artistas: «X, Y & Z», «X x Y». Un «&» seguido de
+    # artículo NO separa, porque suele ser parte del nombre de la banda
+    # («King Gizzard & the Lizard Wizard», «Florence & the Machine»).
+    _SEPARADOR_ARTISTAS = re.compile(r"\s*,\s*|\s+(?:&|x|×)\s+(?!(?:the|los|las|la|el|his|her|their)\b)", re.IGNORECASE)
 
     def __init__(self, agregar_invitados: bool = True, recortar_caratulas_video: bool = True) -> None:
         self._agregar_invitados = agregar_invitados
@@ -109,11 +113,12 @@ class ExtractorBase(Extractor):
 
         album, es_sencillo = self._album(entrada, contexto, titulo)
         artistas_album = self._artistas_album(entrada, contexto) or artistas[:1]
-        en_album = contexto is not None and contexto.es_album
+        # Se asigna a una variable propia para que el verificador de tipos sepa que no es None.
+        contexto_album = contexto if contexto is not None and contexto.es_album else None
 
-        if en_album:
+        if contexto_album is not None:
             numero = self._numero_pista(entrada) or posicion
-            total = contexto.total
+            total = contexto_album.total
         elif es_sencillo:
             numero, total = 1, 1
         else:
@@ -122,7 +127,11 @@ class ExtractorBase(Extractor):
             if contexto is None and numero is None and album.casefold() == titulo.casefold():
                 numero, total = 1, 1
 
-        caratula = contexto.caratula if en_album and contexto.caratula else self._caratula(entrada)
+        caratula = (
+            contexto_album.caratula
+            if contexto_album is not None and contexto_album.caratula
+            else self._caratula(entrada)
+        )
         return Pista(
             plataforma=self.plataforma,
             id_externo=str(entrada.get("id") or entrada.get("track_id")),
@@ -227,11 +236,17 @@ class ExtractorBase(Extractor):
     # ================================================================== #
     def _artistas_y_titulo(self, entrada: dict[str, Any]) -> tuple[list[str], str]:
         """
-        Obtiene artistas y título separando el prefijo «Artista - » cuando aplica.
+        Obtiene artistas y título separando el prefijo «Artista(s) - » cuando aplica.
 
-        - Si la plataforma declara artistas y el título empieza con uno de ellos,
-          se quita el prefijo («Klaypex - Lights» → «Lights»).
-        - Si no declara artistas, el prefijo se toma como artista
+        - Si la plataforma declara artistas y el prefijo es **uno de ellos o una
+          lista que incluye a alguno**, se quita el prefijo:
+
+          - «Klaypex - Lights» → «Lights».
+          - «Justice, Tame Impala, SZA, Grand Theft Auto VI & King Gizzard & the
+            Lizard Wizard - Flower In A Hurricane (feat. …) [from GTAVI]» →
+            «Flower In A Hurricane (feat. …) [from GTAVI]».
+
+        - Si no declara artistas, el prefijo se toma como lista de artistas
           («K/DA - FIRESTARTER…» → artista «K/DA»).
         """
         artistas = self._artistas_crudos(entrada)
@@ -239,11 +254,35 @@ class ExtractorBase(Extractor):
         coincidencia = self._PATRON_ARTISTA_TITULO.match(titulo)
         if coincidencia:
             prefijo = coincidencia["artista"].strip()
+            resto = coincidencia["titulo"].strip()
+            piezas = self._dividir_artistas(prefijo, artistas)
             if not artistas:
-                return [prefijo], coincidencia["titulo"].strip()
-            if prefijo.casefold() in {a.casefold() for a in artistas}:
-                return artistas, coincidencia["titulo"].strip()
+                return piezas or [prefijo], resto
+            conocidos = {a.casefold() for a in artistas}
+            if prefijo.casefold() in conocidos or any(pieza.casefold() in conocidos for pieza in piezas):
+                return artistas, resto
         return artistas, titulo
+
+    def _dividir_artistas(self, texto: str, conocidos: list[str] | None = None) -> list[str]:
+        """
+        Divide «A, B & C» en ``["A", "B", "C"]`` sin romper nombres conocidos.
+
+        Los nombres de ``conocidos`` (los artistas que declara la plataforma) se
+        protegen antes de dividir, de modo que «Simon & Garfunkel» o «King
+        Gizzard & the Lizard Wizard» se conservan completos aunque contengan
+        separadores.
+        """
+        protegidos: list[str] = []
+        trabajo = texto
+        for nombre in sorted(conocidos or [], key=len, reverse=True):
+            if self._SEPARADOR_ARTISTAS.search(nombre):
+                patron = re.compile(re.escape(nombre), re.IGNORECASE)
+                if patron.search(trabajo):
+                    trabajo = patron.sub(f"\x00{len(protegidos)}\x00", trabajo)
+                    protegidos.append(nombre)
+        piezas = [pieza.strip() for pieza in self._SEPARADOR_ARTISTAS.split(trabajo) if pieza and pieza.strip()]
+        restaurar = re.compile(r"\x00(\d+)\x00")
+        return self._sin_duplicados(restaurar.sub(lambda m: protegidos[int(m[1])], pieza) for pieza in piezas)
 
     def _limpiar_titulo(self, titulo: str) -> str:
         """Quita sufijos de video («(Official Music Video)», «[Audio]»…) y espacios dobles."""
@@ -252,18 +291,29 @@ class ExtractorBase(Extractor):
 
     def _extraer_invitados(self, titulo: str) -> tuple[str, list[str]]:
         """
-        Detecta artistas invitados y normaliza el título a «Canción (feat. X, Y)».
+        Detecta artistas invitados y normaliza la mención a «(feat. X, Y)».
+
+        La mención se deja **en su lugar**: «Canción (ft. X) [from GTAVI]» →
+        «Canción (feat. X) [from GTAVI]» (no se mueve al final).
 
         Returns:
             ``(titulo_normalizado, invitados)``.
         """
-        coincidencia = self._PATRON_INVITADOS_PARENTESIS.search(titulo) or self._PATRON_INVITADOS_LIBRE.search(titulo)
-        if not coincidencia:
-            return titulo, []
-        texto_invitados = coincidencia["invitados"].strip()
-        invitados = [i.strip() for i in self._SEPARADOR_INVITADOS.split(texto_invitados) if i.strip()]
-        base = (titulo[: coincidencia.start()] + titulo[coincidencia.end() :]).strip()
-        return f"{base} (feat. {texto_invitados})", invitados
+        entre_parentesis = self._PATRON_INVITADOS_PARENTESIS.search(titulo)
+        if entre_parentesis:
+            texto_invitados = entre_parentesis["invitados"].strip()
+            normalizado = (
+                f"{titulo[: entre_parentesis.start()].rstrip()} (feat. {texto_invitados})"
+                f"{titulo[entre_parentesis.end() :]}"
+            ).strip()
+            return normalizado, self._dividir_artistas(texto_invitados)
+        libre = self._PATRON_INVITADOS_LIBRE.search(titulo)
+        if libre:
+            texto_invitados = libre["invitados"].strip()
+            resto = libre["resto"] or ""
+            normalizado = f"{titulo[: libre.start()].rstrip()} (feat. {texto_invitados}){resto}".strip()
+            return normalizado, self._dividir_artistas(texto_invitados)
+        return titulo, []
 
     def _anio_propio(self, entrada: dict[str, Any]) -> int | None:
         """Año de lanzamiento declarado por la pista (``release_date`` o ``release_year``)."""

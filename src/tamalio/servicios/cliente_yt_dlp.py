@@ -1,11 +1,14 @@
 """Cliente de ``yt-dlp``: extracción de metadatos y descarga del mejor audio disponible."""
 
 import copy
+import json
 import logging
 import re
+import threading
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from yt_dlp import YoutubeDL
 from yt_dlp.networking.impersonate import ImpersonateTarget
@@ -15,6 +18,7 @@ from tamalio.configuracion.configuracion import Configuracion
 from tamalio.excepciones.error_descarga_cancelada import ErrorDescargaCancelada
 from tamalio.excepciones.error_deteccion_bot import ErrorDeteccionBot
 from tamalio.excepciones.error_tamalio import ErrorTamalio
+from tamalio.interfaces.cliente_medios import ClienteMedios
 from tamalio.modelos.fase_proceso import FaseProceso
 from tamalio.modelos.fuente import Fuente
 from tamalio.modelos.pista import Pista
@@ -26,7 +30,7 @@ from tamalio.servicios.temporizador_humano import TemporizadorHumano
 registro = logging.getLogger(__name__)
 
 
-class ClienteYtDlp:
+class ClienteYtDlp(ClienteMedios):
     """
     Configura ``yt-dlp`` con las medidas anti-bloqueo del proyecto.
 
@@ -75,6 +79,7 @@ class ClienteYtDlp:
         self._temporizador = temporizador
         self._cookies = cookies
         self._senal: ErrorDescargaCancelada | None = None
+        self._registro_ytdlp = RegistroYtDlp()
 
     # ================================================================== #
     # Opciones de yt-dlp
@@ -89,7 +94,9 @@ class ClienteYtDlp:
             # Salida silenciosa: la vista dibuja su propio progreso.
             "quiet": True,
             "noprogress": True,
-            "logger": RegistroYtDlp(),
+            "logger": self._registro_ytdlp,
+            # En modo depuración yt-dlp detalla cada petición, formato y decisión.
+            "verbose": self._config.depuracion,
             # El mejor audio disponible; «best» como respaldo (se extrae el audio con FFmpeg).
             "format": "bestaudio/best",
             "outtmpl": {"default": "%(extractor_key)s-%(id)s.%(ext)s"},
@@ -120,12 +127,17 @@ class ClienteYtDlp:
             opciones["impersonate"] = ImpersonateTarget.from_str(objetivo)
         if self._cookies:
             opciones["cookiefile"] = str(self._cookies)
+        if registro.isEnabledFor(logging.DEBUG):
+            visibles = {k: v for k, v in opciones.items() if k not in {"logger", "progress_hooks"}}
+            registro.debug("Opciones de yt-dlp: %s", visibles)
         return opciones
 
     def _crear(self, opciones: dict[str, Any]) -> YoutubeDL:
         """Crea ``YoutubeDL``; si la suplantación no está disponible, reintenta sin ella."""
+        # Las anotaciones de yt-dlp (``_Params``) son un TypedDict parcial; las
+        # opciones se construyen como ``dict`` normal y se adaptan con ``cast``.
         try:
-            return YoutubeDL(opciones)
+            return YoutubeDL(cast(Any, opciones))
         except YoutubeDLError as error:
             if "impersonate" not in opciones or "impersonate" not in str(error).lower():
                 raise
@@ -136,22 +148,30 @@ class ClienteYtDlp:
                     self._config.red_suplantar_navegador,
                 )
             sin_suplantar = {clave: valor for clave, valor in opciones.items() if clave != "impersonate"}
-            return YoutubeDL(sin_suplantar)
+            return YoutubeDL(cast(Any, sin_suplantar))
 
     # ================================================================== #
     # Operaciones
     # ================================================================== #
-    def extraer(self, fuente: Fuente) -> dict[str, Any]:
+    def extraer(self, fuente: Fuente, punto_control: Callable[[], None] | None = None) -> dict[str, Any]:
         """
         Obtiene los metadatos completos (sin descargar) de una pista o colección.
 
+        Args:
+            fuente: Enlace a analizar.
+            punto_control: Se ejecuta antes de cada petición de yt-dlp para que
+                pausar o cancelar responda en segundos (ver :class:`RegistroYtDlp`).
+
         Raises:
+            ErrorDescargaCancelada: Si el usuario pausó/canceló durante la extracción.
             ErrorDeteccionBot: Si la plataforma pidió verificación o sesión.
             ErrorTamalio: Para cualquier otro fallo de ``yt-dlp``.
         """
+        self._registro_ytdlp = RegistroYtDlp()  # Uno nuevo por operación (ver _en_segundo_plano).
+        self._registro_ytdlp.punto_control = punto_control
         opciones = self.opciones(fuente.solo_pista)
         try:
-            info = self._extraer_con(opciones, fuente)
+            info = self._extraer_con(opciones, fuente, punto_control)
         except ErrorTamalio as error:
             # Si se forzó la suplantación y el sitio respondió con un desafío, se
             # reintenta una vez dejando que el extractor decida por sí mismo.
@@ -159,9 +179,11 @@ class ClienteYtDlp:
                 raise
             registro.info("Desafío anti-bots con suplantación forzada; se reintenta sin ella.")
             opciones.pop("impersonate")
-            info = self._extraer_con(opciones, fuente)
+            info = self._extraer_con(opciones, fuente, punto_control)
         if not info:
             raise ErrorTamalio(f"yt-dlp no devolvió información para «{fuente.url}».")
+        if self._config.depuracion:
+            self._volcar_info(info, fuente)
         return info
 
     def descargar(
@@ -186,50 +208,120 @@ class ClienteYtDlp:
             ErrorTamalio: Para cualquier otro fallo.
         """
         self._senal = None
+        self._registro_ytdlp = RegistroYtDlp()  # Uno nuevo por operación (ver _en_segundo_plano).
+        self._registro_ytdlp.punto_control = punto_control
         opciones = self.opciones(solo_pista=True)
-        opciones["progress_hooks"] = [self._crear_hook(al_progreso, punto_control)]
+        opciones["progress_hooks"] = [self._crear_hook(al_progreso, punto_control, self._registro_ytdlp)]
         info = pista.info_extraccion
 
-        with self._crear(opciones) as ydl:
-            try:
-                if info and info.get("formats"):
-                    resultado = ydl.process_ie_result(copy.deepcopy(info), download=True)
-                else:
-                    resultado = ydl.extract_info(pista.url, download=True)
-            except (DownloadError, DownloadCancelled, YoutubeDLError) as error:
-                if self._senal is not None:
-                    raise self._senal from None
-                if not (info and self._PATRON_CADUCADO.search(str(error))):
-                    raise self._traducir(error, pista.plataforma) from error
-                registro.info("Las URL de «%s» caducaron; se extrae de nuevo.", pista.titulo)
+        def operar() -> Any:
+            with self._crear(opciones) as ydl:
                 try:
-                    resultado = ydl.extract_info(pista.url, download=True)
-                except (DownloadError, DownloadCancelled, YoutubeDLError) as segundo_error:
-                    if self._senal is not None:
-                        raise self._senal from None
-                    raise self._traducir(segundo_error, pista.plataforma) from segundo_error
+                    if info and info.get("formats"):
+                        return ydl.process_ie_result(cast(Any, copy.deepcopy(info)), download=True)
+                    return ydl.extract_info(pista.url, download=True)
+                except (DownloadError, DownloadCancelled, YoutubeDLError) as error:
+                    self._relanzar_senal()
+                    if not (info and self._PATRON_CADUCADO.search(str(error))):
+                        raise self._traducir(error, pista.plataforma) from error
+                    registro.info("Las URL de «%s» caducaron; se extrae de nuevo.", pista.titulo)
+                    try:
+                        return ydl.extract_info(pista.url, download=True)
+                    except (DownloadError, DownloadCancelled, YoutubeDLError) as segundo_error:
+                        self._relanzar_senal()
+                        raise self._traducir(segundo_error, pista.plataforma) from segundo_error
+
+        resultado = self._en_segundo_plano(operar, punto_control)
 
         descargas = resultado.get("requested_downloads") or []
         ruta = Path(descargas[0]["filepath"]) if descargas else None
         if ruta is None or not ruta.is_file():
             raise ErrorTamalio(f"yt-dlp terminó pero no se encontró el fichero de «{pista.titulo}».")
-        return ruta, resultado
+        registro.debug("Descargado %s (%s, %s kbps)", ruta, resultado.get("acodec"), resultado.get("abr"))
+        return ruta, cast(dict[str, Any], resultado)
 
     # ================================================================== #
     # Auxiliares
     # ================================================================== #
-    def _extraer_con(self, opciones: dict[str, Any], fuente: Fuente) -> dict[str, Any] | None:
-        """Ejecuta ``extract_info`` con las opciones dadas y traduce los errores."""
-        with self._crear(opciones) as ydl:
+    def _extraer_con(
+        self, opciones: dict[str, Any], fuente: Fuente, punto_control: Callable[[], None] | None = None
+    ) -> dict[str, Any] | None:
+        """Ejecuta ``extract_info`` (en segundo plano) con las opciones dadas y traduce los errores."""
+        self._registro_ytdlp.senal = None
+
+        def operar() -> dict[str, Any] | None:
+            with self._crear(opciones) as ydl:
+                try:
+                    return cast(dict[str, Any] | None, ydl.extract_info(fuente.url, download=False))
+                except (DownloadError, YoutubeDLError) as error:
+                    self._relanzar_senal()
+                    raise self._traducir(error, fuente.plataforma) from error
+
+        return self._en_segundo_plano(operar, punto_control)
+
+    def _en_segundo_plano[T](self, operacion: Callable[[], T], punto_control: Callable[[], None] | None) -> T:
+        """
+        Ejecuta ``operacion`` en un hilo y vigila el punto de control cada 0.1 s.
+
+        **Por qué:** mientras ``yt-dlp`` espera una respuesta de red no llama a
+        ningún *hook*, así que una cancelación podía tardar lo que tardara la
+        petición (o toda la extracción de un álbum). Ahora el hilo principal
+        atiende la orden de inmediato: deja de esperar y marca la operación como
+        abandonada; el hilo de ``yt-dlp`` se detiene solo en su siguiente mensaje
+        o fragmento descargado (es un hilo *daemon*, no impide cerrar el programa).
+        """
+        resultado: dict[str, Any] = {}
+        marcador = self._registro_ytdlp
+
+        def trabajo() -> None:
             try:
-                return ydl.extract_info(fuente.url, download=False)
-            except (DownloadError, YoutubeDLError) as error:
-                raise self._traducir(error, fuente.plataforma) from error
+                resultado["valor"] = operacion()
+            except BaseException as error:  # Se relanza en el hilo principal.
+                resultado["error"] = error
+
+        hilo = threading.Thread(target=trabajo, name="tamalio-yt-dlp", daemon=True)
+        hilo.start()
+        try:
+            while hilo.is_alive():
+                hilo.join(0.1)
+                if punto_control is not None and hilo.is_alive():
+                    punto_control()
+        except BaseException:
+            # Cancelación (o Ctrl+C forzado): el hilo de yt-dlp se detendrá solo.
+            marcador.abandonar.set()
+            registro.debug("Operación de yt-dlp abandonada por orden del usuario.")
+            raise
+        if "error" in resultado:
+            raise resultado["error"]
+        return cast(T, resultado.get("valor"))
+
+    def _relanzar_senal(self) -> None:
+        """Si la interrupción vino del usuario, relanza su señal en lugar del error de yt-dlp."""
+        senal = self._senal or self._registro_ytdlp.senal
+        if senal is not None:
+            raise senal from None
+
+    def _volcar_info(self, info: dict[str, Any], fuente: Fuente) -> None:
+        """
+        Modo depuración: guarda el JSON crudo de yt-dlp (como los de ``tests/fixtures``).
+
+        Se escribe en ``<carpeta de registros>/depuracion/`` con ``sanitize_info``,
+        que elimina objetos no serializables.
+        """
+        carpeta = self._config.carpeta_estado / "depuracion"
+        carpeta.mkdir(parents=True, exist_ok=True)
+        marca = datetime.now().strftime("%Y%m%d-%H%M%S")
+        identificador = re.sub(r"[^\w.-]+", "_", str(info.get("id") or fuente.identificador))[:60]
+        destino = carpeta / f"{marca}-{fuente.plataforma.value}-{identificador}.json"
+        datos = YoutubeDL.sanitize_info(cast(Any, info))
+        destino.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+        registro.debug("JSON de yt-dlp guardado en %s", destino)
 
     def _crear_hook(
         self,
         al_progreso: Callable[[ProgresoDescarga], None] | None,
         punto_control: Callable[[], None] | None,
+        marcador: RegistroYtDlp | None = None,
     ) -> Callable[[dict[str, Any]], None]:
         """
         Construye el *hook* de progreso que ``yt-dlp`` llama varias veces por segundo.
@@ -241,6 +333,8 @@ class ClienteYtDlp:
         """
 
         def hook(estado: dict[str, Any]) -> None:
+            if marcador is not None and marcador.abandonar.is_set():
+                raise DownloadCancelled("Operación abandonada por Tamalio.")
             if punto_control is not None:
                 try:
                     punto_control()

@@ -55,6 +55,19 @@ class EtiquetadorAudio:
         if metodo is None:
             registro.warning("El formato %s no admite etiquetas; se omite el etiquetado.", extension)
             return
+        registro.debug(
+            "Etiquetas %s → título=%r álbum=%r artistas=%r artistas_álbum=%r pista=%s/%s géneros=%r año=%s carátula=%s",
+            ruta.name,
+            pista.titulo,
+            pista.album,
+            pista.artistas,
+            pista.artistas_album,
+            pista.numero_pista,
+            pista.total_pistas,
+            pista.generos,
+            pista.anio,
+            f"{len(imagen)} bytes" if imagen else "sin imagen",
+        )
         try:
             metodo(ruta, pista, imagen)
         except Exception as error:  # mutagen lanza varios tipos según el formato.
@@ -165,8 +178,11 @@ class EtiquetadorAudio:
         audio = WAVE(ruta)
         if audio.tags is None:
             audio.add_tags()
-        audio.tags.clear()
-        self._marcos_id3(audio.tags, pista, imagen)
+        etiquetas = audio.tags
+        if etiquetas is None:  # add_tags() siempre las crea; esto informa al verificador de tipos.
+            raise ErrorTamalio(f"No se pudieron crear etiquetas ID3 en «{ruta.name}».")
+        etiquetas.clear()
+        self._marcos_id3(etiquetas, pista, imagen)
         audio.save(v2_version=4)
 
     # ------------------------------------------------------------------ #
@@ -177,6 +193,8 @@ class EtiquetadorAudio:
         audio = MP4(ruta)
         if audio.tags is None:
             audio.add_tags()
+        if audio.tags is None:  # add_tags() siempre las crea; esto informa al verificador de tipos.
+            raise ErrorTamalio(f"No se pudieron crear etiquetas MP4 en «{ruta.name}».")
         audio.tags.clear()
         audio["\xa9nam"] = [pista.titulo]
         audio["\xa9alb"] = [pista.album]

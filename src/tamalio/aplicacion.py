@@ -12,6 +12,7 @@ from tamalio.controladores.controlador_descargas import ControladorDescargas
 from tamalio.controladores.controlador_sistema import ControladorSistema
 from tamalio.excepciones.error_tamalio import ErrorTamalio
 from tamalio.extractores.fabrica_extractores import FabricaExtractores
+from tamalio.modelos.conjunto_datos import ConjuntoDatos
 from tamalio.modelos.estado_descarga import EstadoDescarga
 from tamalio.modelos.formato_audio import FormatoAudio
 from tamalio.modelos.plataforma import Plataforma
@@ -59,12 +60,27 @@ class Aplicacion:
     def ejecutar(self, argumentos: list[str] | None = None) -> int:
         """Punto de entrada; devuelve el código de salida del proceso."""
         espacio = AnalizadorArgumentos().analizar(argumentos)
-        self._vista = VistaConsola(color=False if espacio.sin_color else None, detallado=espacio.detallado)
         try:
             self._config = Configuracion.cargar(espacio.config)
+        except ErrorTamalio as error:
+            VistaConsola(color=False if espacio.sin_color else None).mostrar_error(error.mensaje, error.sugerencia)
+            return 1
+        self._config.depuracion = self._config.depuracion or espacio.debug
+        self._vista = VistaConsola(
+            color=False if espacio.sin_color else None,
+            detallado=espacio.detallado,
+            depuracion=self._config.depuracion,
+        )
+        try:
             if getattr(espacio, "destino", None):
                 self._config.carpeta_destino = espacio.destino.expanduser()
-            self._configurar_registro(espacio.detallado)
+            self._configurar_registro(espacio.detallado, self._config.depuracion)
+            if self._config.depuracion:
+                registro = logging.getLogger("tamalio.aplicacion")
+                registro.debug("Argumentos: %s", vars(espacio))
+                registro.debug(
+                    "Configuración (%s): %s", self._config.ruta_fichero or "predeterminada", self._config.resumen()
+                )
             if espacio.comando not in {"cola", "pausar", "cancelar"}:
                 self._vista.mostrar_encabezado()
             return self._despachar(espacio)
@@ -90,6 +106,9 @@ class Aplicacion:
             verificador = VerificadorDependencias(config, lambda: self._bd().version_servidor())
             return ControladorSistema(vista).doctor(verificador)
         if comando == "bd":
+            if espacio.accion == "borrar":
+                conjuntos = [ConjuntoDatos(c) for c in (espacio.conjuntos or [])] or list(ConjuntoDatos)
+                return ControladorSistema(vista).borrar_bd(self._bd(), conjuntos, espacio.confirmar)
             return ControladorSistema(vista).iniciar_bd(self._bd())
         if comando == "sesion":
             sistema = ControladorSistema(vista)
@@ -101,6 +120,9 @@ class Aplicacion:
                 return sistema.listar_sesiones(repositorio, config.sesiones)
             return sistema.quitar_sesion(repositorio, Plataforma(espacio.plataforma))
         if comando == "convertir":
+            # argparse exige «-f», pero se valida igual para que el tipo sea FormatoAudio.
+            if formato is None:
+                raise ErrorTamalio("Indica el formato de destino con «-f FORMATO».")
             return self._controlador_conversion().convertir(
                 espacio.rutas, formato, plataforma, espacio.todo, espacio.conservar_original
             )
@@ -189,13 +211,14 @@ class Aplicacion:
             ffmpeg,
         )
 
-    def _configurar_registro(self, detallado: bool) -> None:
+    def _configurar_registro(self, detallado: bool, depuracion: bool = False) -> None:
         """
         Registro en dos destinos:
 
         - Fichero rotativo (``tamalio.log``, 2 MB × 3) con todo el detalle, útil
           para diagnosticar bloqueos o errores de ``yt-dlp``.
-        - La vista: advertencias siempre; depuración solo con ``--detallado``.
+        - La vista: advertencias siempre; mensajes informativos con ``--detallado``;
+          **todo** (incluidas las peticiones HTTP de ``urllib3``) con ``--debug``.
         """
         assert self._config is not None and self._vista is not None
         raiz = logging.getLogger()
@@ -211,7 +234,9 @@ class Aplicacion:
             raiz.addHandler(fichero)
         except OSError:
             pass  # Sin permisos de escritura: se sigue sin fichero de registro.
-        raiz.addHandler(ManejadorRegistroConsola(self._vista, logging.DEBUG if detallado else logging.WARNING))
-        # Bibliotecas muy habladoras: solo advertencias.
-        for ruidoso in ("urllib3", "charset_normalizer", "psycopg"):
+        nivel_consola = logging.DEBUG if depuracion else (logging.INFO if detallado else logging.WARNING)
+        raiz.addHandler(ManejadorRegistroConsola(self._vista, nivel_consola))
+        # Bibliotecas muy habladoras: solo advertencias (en depuración se ve urllib3,
+        # útil para seguir la descarga de carátulas; el SQL ya lo registra Tamalio).
+        for ruidoso in ("charset_normalizer", "psycopg", *(() if depuracion else ("urllib3",))):
             logging.getLogger(ruidoso).setLevel(logging.WARNING)

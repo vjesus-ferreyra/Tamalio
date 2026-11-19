@@ -1,0 +1,37 @@
+// =====================================================================
+// Tamalio · Configuración de Zed para este proyecto
+// ---------------------------------------------------------------------
+// Ruff es el linter y formateador de Python. Lee sus reglas de
+// [tool.ruff] en pyproject.toml, así que Zed muestra lo mismo que
+// «uv run ruff check .» y formatea igual que «uv run ruff format .».
+// =====================================================================
+{
+  "languages": {
+    "Python": {
+      // Ruff + los servidores que Zed activa por defecto (basedpyright para tipos).
+      "language_servers": ["ruff", "..."],
+      "format_on_save": "on",
+      // Al guardar: ordenar importaciones y aplicar las correcciones seguras de Ruff…
+      "code_actions_on_format": {
+        "source.organizeImports.ruff": true,
+        "source.fixAll.ruff": true
+      },
+      // …y después formatear con Ruff.
+      "formatter": {
+        "language_server": {
+          "name": "ruff"
+        }
+      }
+    }
+  },
+  "lsp": {
+    "ruff": {
+      "initialization_options": {
+        "settings": {
+          // Prioriza pyproject.toml sobre cualquier ajuste del editor.
+          "configurationPreference": "filesystemFirst"
+        }
+      }
+    }
+  }
+}

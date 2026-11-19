@@ -20,12 +20,15 @@ class RepositorioTareasMemoria(RepositorioTareas):
         for tarea in self.tareas.values():
             if tarea.fuente.url == fuente.url and tarea.estado.es_activo:
                 return copy.copy(tarea), False
-        tarea = TareaDescarga(fuente=fuente, id=self._siguiente)
+        id_tarea = self._siguiente
         self._siguiente += 1
-        self.tareas[tarea.id] = copy.copy(tarea)
+        tarea = TareaDescarga(fuente=fuente, id=id_tarea)
+        self.tareas[id_tarea] = copy.copy(tarea)
         return tarea, True
 
     def actualizar(self, tarea: TareaDescarga) -> None:
+        if tarea.id is None:
+            raise ValueError("La tarea no tiene ID.")
         self.tareas[tarea.id] = copy.copy(tarea)
 
     def obtener(self, id_tarea: int) -> TareaDescarga | None:

@@ -11,6 +11,7 @@ from tamalio.excepciones.error_descarga_cancelada import ErrorDescargaCancelada
 from tamalio.excepciones.error_deteccion_bot import ErrorDeteccionBot
 from tamalio.excepciones.error_tamalio import ErrorTamalio
 from tamalio.extractores.fabrica_extractores import FabricaExtractores
+from tamalio.interfaces.cliente_medios import ClienteMedios
 from tamalio.interfaces.observador_descargas import ObservadorDescargas
 from tamalio.interfaces.repositorio_catalogo import RepositorioCatalogo
 from tamalio.interfaces.repositorio_tareas import RepositorioTareas
@@ -22,7 +23,6 @@ from tamalio.modelos.plataforma import Plataforma
 from tamalio.modelos.progreso_descarga import ProgresoDescarga
 from tamalio.modelos.resumen_ejecucion import ResumenEjecucion
 from tamalio.modelos.tarea_descarga import TareaDescarga
-from tamalio.servicios.cliente_yt_dlp import ClienteYtDlp
 from tamalio.servicios.control_ejecucion import ControlEjecucion
 from tamalio.servicios.conversor_audio import ConversorAudio
 from tamalio.servicios.descargador_caratulas import DescargadorCaratulas
@@ -56,7 +56,8 @@ class GestorDescargas:
     Args:
         config: Configuración.
         fabrica_extractores: Proveedor de extractores por plataforma.
-        fabrica_cliente: Crea un :class:`ClienteYtDlp` con el fichero de cookies dado.
+        fabrica_cliente: Crea un :class:`ClienteMedios` (en producción, ``ClienteYtDlp``)
+            con el fichero de cookies dado.
         caratulas: Descargador de carátulas.
         conversor: Conversor de audio.
         etiquetador: Etiquetador de metadatos.
@@ -71,7 +72,7 @@ class GestorDescargas:
         self,
         config: Configuracion,
         fabrica_extractores: FabricaExtractores,
-        fabrica_cliente: Callable[[Path | None], ClienteYtDlp],
+        fabrica_cliente: Callable[[Path | None], ClienteMedios],
         caratulas: DescargadorCaratulas,
         conversor: ConversorAudio,
         etiquetador: EtiquetadorAudio,
@@ -180,9 +181,24 @@ class GestorDescargas:
         self._pausa_humana(control, observador)
         observador.al_cambiar_fase(FaseProceso.EXTRAYENDO, fuente.url)
         info = self._con_reintento_bloqueo(
-            fuente.plataforma, lambda cliente: cliente.extraer(fuente), control, observador
+            fuente.plataforma, lambda cliente: cliente.extraer(fuente, control.punto_control), control, observador
         )
         pistas = self._extractores.obtener(fuente.plataforma).normalizar(info, fuente)
+        for pista in pistas:
+            registro.debug(
+                "Normalizada %s/%s: %r · artistas=%r · álbum=%r · artistas_álbum=%r · géneros=%r · año=%s · "
+                "sencillo=%s · carátula=%s",
+                pista.numero_pista,
+                pista.total_pistas,
+                pista.titulo,
+                pista.artistas,
+                pista.album,
+                pista.artistas_album,
+                pista.generos,
+                pista.anio,
+                pista.es_sencillo,
+                pista.caratula.url if pista.caratula else None,
+            )
         if not pistas:
             raise ErrorTamalio("La fuente no contiene pistas disponibles.")
         titulo = str(info.get("title") or pistas[0].titulo)
@@ -248,7 +264,7 @@ class GestorDescargas:
             if pista.caratula is not None:
                 observador.al_cambiar_fase(FaseProceso.CARATULA)
                 try:
-                    imagen = self._caratulas.obtener(pista.caratula)
+                    imagen = self._caratulas.obtener(pista.caratula, control.punto_control)
                 except ErrorTamalio as error:
                     observador.al_aviso(f"Sin carátula para «{pista.titulo}»: {error.mensaje}")
                 if imagen is None:
@@ -301,7 +317,12 @@ class GestorDescargas:
         )
         for patron in patrones:
             for fichero in self._carpeta_trabajo.glob(patron):
-                fichero.unlink(missing_ok=True)
+                try:
+                    fichero.unlink(missing_ok=True)
+                except OSError:
+                    # En Windows el hilo abandonado de yt-dlp puede tenerlo abierto un instante;
+                    # el fichero se reemplaza o se limpia en la siguiente descarga.
+                    registro.debug("No se pudo borrar %s todavía.", fichero)
 
     # ================================================================== #
     # Anti-bloqueo
@@ -310,6 +331,7 @@ class GestorDescargas:
         """Espera aleatoria antes de cada operación pesada (excepto la primera)."""
         if self._operaciones > 0:
             segundos = self._temporizador.siguiente_espera()
+            registro.debug("Pausa humana aleatoria: %.3f s", segundos)
             observador.al_cambiar_fase(FaseProceso.ESPERANDO, f"{segundos:.1f} s")
             self._temporizador.esperar(
                 segundos,
@@ -321,7 +343,7 @@ class GestorDescargas:
     def _con_reintento_bloqueo(
         self,
         plataforma: Plataforma,
-        operacion: Callable[[ClienteYtDlp], Resultado],
+        operacion: Callable[[ClienteMedios], Resultado],
         control: ControlEjecucion,
         observador: ObservadorDescargas,
     ) -> Resultado:
@@ -336,6 +358,7 @@ class GestorDescargas:
         ya_se_pidio = False
         while True:
             cookies = self._sesiones.ruta_cookies(plataforma)
+            registro.debug("Cookies para %s: %s", plataforma.value, cookies or "ninguna")
             cliente = self._fabrica_cliente(cookies)
             try:
                 return operacion(cliente)

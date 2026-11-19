@@ -5,13 +5,10 @@ import shutil
 
 import pytest
 
-from dobles.observador_registrador import ObservadorRegistrador
-from dobles.repositorio_catalogo_memoria import RepositorioCatalogoMemoria
-from dobles.repositorio_sesiones_memoria import RepositorioSesionesMemoria
-from dobles.repositorio_tareas_memoria import RepositorioTareasMemoria
 from tamalio.configuracion.configuracion import Configuracion
 from tamalio.excepciones.error_deteccion_bot import ErrorDeteccionBot
 from tamalio.extractores.fabrica_extractores import FabricaExtractores
+from tamalio.interfaces.cliente_medios import ClienteMedios
 from tamalio.modelos.estado_descarga import EstadoDescarga
 from tamalio.modelos.fase_proceso import FaseProceso
 from tamalio.modelos.plataforma import Plataforma
@@ -25,25 +22,33 @@ from tamalio.servicios.gestor_descargas import GestorDescargas
 from tamalio.servicios.gestor_sesiones import GestorSesiones
 from tamalio.servicios.organizador_biblioteca import OrganizadorBiblioteca
 from tamalio.servicios.temporizador_humano import TemporizadorHumano
+from tests.dobles.observador_registrador import ObservadorRegistrador
+from tests.dobles.repositorio_catalogo_memoria import RepositorioCatalogoMemoria
+from tests.dobles.repositorio_sesiones_memoria import RepositorioSesionesMemoria
+from tests.dobles.repositorio_tareas_memoria import RepositorioTareasMemoria
 
 pytestmark = pytest.mark.ffmpeg
 
 
-class ClienteFalso:
+class ClienteFalso(ClienteMedios):
     """Imita a ClienteYtDlp: devuelve el JSON real y «descarga» un audio generado."""
 
     def __init__(self, info, audio, cookies, bloqueos):
         self._info, self._audio, self._cookies, self._bloqueos = info, audio, cookies, bloqueos
 
-    def extraer(self, fuente):
+    def extraer(self, fuente, punto_control=None):
+        if punto_control is not None:
+            punto_control()
         if self._bloqueos["restantes"] and self._cookies is None:
             self._bloqueos["restantes"] -= 1
             raise ErrorDeteccionBot(fuente.plataforma, "Sign in to confirm you're not a bot")
         return self._info
 
-    def descargar(self, pista, al_progreso, punto_control):
-        punto_control()
-        al_progreso(ProgresoDescarga(FaseProceso.DESCARGANDO, 50, 100))
+    def descargar(self, pista, al_progreso=None, punto_control=None):
+        if punto_control is not None:
+            punto_control()
+        if al_progreso is not None:
+            al_progreso(ProgresoDescarga(FaseProceso.DESCARGANDO, 50, 100))
         destino = self._audio.parent / f"Bandcamp-{pista.id_externo}.mp3"
         shutil.copy(self._audio, destino)
         return destino, {"acodec": "mp3", "abr": 128}
@@ -53,7 +58,7 @@ class CaratulasFalsas(DescargadorCaratulas):
     def __init__(self, imagen):
         self._imagen = imagen
 
-    def obtener(self, caratula):
+    def obtener(self, caratula, punto_control=None):
         return self._imagen
 
 

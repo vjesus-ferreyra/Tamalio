@@ -44,16 +44,27 @@ class VistaConsola(Vista):
     Args:
         salida: Flujo de salida (``sys.stdout`` por defecto).
         color: Forzar/deshabilitar color (``None`` = automático).
-        detallado: Muestra mensajes de depuración y detalles extra.
+        detallado: Muestra mensajes informativos y detalles extra.
+        depuracion: Muestra **todo** lo que registra cada componente (yt-dlp,
+            FFmpeg, SQL, carátulas, etiquetas…) con hora y origen.
     """
 
     _LINEAS_VIVAS = 3
 
-    def __init__(self, salida: TextIO | None = None, color: bool | None = None, detallado: bool = False) -> None:
+    def __init__(
+        self,
+        salida: TextIO | None = None,
+        color: bool | None = None,
+        detallado: bool = False,
+        depuracion: bool = False,
+    ) -> None:
         self._salida = salida or sys.stdout
         self._estilos = EstilosConsola(self._salida, color)
         self._barra = BarraProgreso(self._estilos)
-        self._detallado = detallado
+        self._detallado = detallado or depuracion
+        self._depuracion = depuracion
+        self._pendiente: str | None = None
+        self._inicio_pendiente = 0.0
         self._candado = threading.RLock()
         self._en_vivo = self._estilos.es_terminal
         self._lineas_dibujadas = 0
@@ -137,7 +148,14 @@ class VistaConsola(Vista):
         else:
             linea1 = f"  {self._barra.giro(self._fotograma)} {e.tenue('Preparando…')}"
 
-        # Línea 2: fase + barra + cifras.
+        # Línea 2: fase + barra + cifras (o la orden pendiente del usuario).
+        if self._pendiente:
+            transcurrido = BarraProgreso.formatear_tiempo(time.monotonic() - self._inicio_pendiente)
+            detalle = self._recortar(
+                f"{self._pendiente} · esperando a que termine la petición en curso · {transcurrido}", ancho - 8
+            )
+            linea2 = f"    {self._barra.giro(self._fotograma)} {e.aviso(detalle)}"
+            return [linea1, linea2, self._linea_lote()]
         fase = self._fase.descripcion if self._fase else "Esperando"
         if self._pausada:
             fase = "En pausa"
@@ -148,7 +166,11 @@ class VistaConsola(Vista):
         etiqueta = e.aviso(fase) if self._pausada else e.info(fase)
         linea2 = f"    {etiqueta:<{14 + (len(etiqueta) - len(fase))}} {barra}  {e.tenue(cifras)}"
 
-        # Línea 3: lote + atajos.
+        return [linea1, linea2, self._linea_lote()]
+
+    def _linea_lote(self) -> str:
+        """Línea 3: avance del lote y atajos de teclado."""
+        e = self._estilos
         hechas, total_tareas = self._tareas_terminadas, max(self._tarea_pos[1], 1)
         lote = self._barra.dibujar(hechas / total_tareas, 20)
         atajos = ""
@@ -158,8 +180,7 @@ class VistaConsola(Vista):
                 f"{e.acento(f'[{t}]')} {e.tenue(d)}"
                 for t, d in (("p", pausa), ("s", "saltar"), ("c", "cancelar"), ("q", "salir"))
             )
-        linea3 = f"  {e.tenue('Lote')} {lote}  {e.tenue(f'{hechas}/{total_tareas}')}{atajos}"
-        return [linea1, linea2, linea3]
+        return f"  {e.tenue('Lote')} {lote}  {e.tenue(f'{hechas}/{total_tareas}')}{atajos}"
 
     def _cifras(self) -> str:
         """Texto de cifras según la fase: bytes y velocidad, segundos o tiempo transcurrido."""
@@ -224,6 +245,7 @@ class VistaConsola(Vista):
         with self._candado:
             self._borrar_vivo()
             self._activa = False
+            self._pendiente = None
             if self._en_vivo:
                 self._escribir("\x1b[?25h")
 
@@ -260,12 +282,37 @@ class VistaConsola(Vista):
     def mostrar_registro(self, nivel: int, origen: str, mensaje: str) -> None:
         """Muestra un mensaje del módulo ``logging`` (lo llama el manejador de registro)."""
         e = self._estilos
+        if self._depuracion:
+            self._mostrar_depuracion(nivel, origen, mensaje)
+            return
         if nivel >= logging.ERROR:
             self._permanente(f"    {e.error('error')} {e.tenue(origen)} {mensaje}")
         elif nivel >= logging.WARNING:
             self._permanente(f"    {e.aviso('aviso')} {e.tenue(mensaje)}")
         elif self._detallado:
             self._permanente(f"    {e.tenue(f'· {origen}: {mensaje}')}")
+
+    def _mostrar_depuracion(self, nivel: int, origen: str, mensaje: str) -> None:
+        """
+        Formato del modo ``--debug``::
+
+            22:50:13.418 DEBUG cliente_yt_dlp │ Opciones de yt-dlp: {…}
+            22:50:14.002 DEBUG ffmpeg         │ FFmpeg $ ffmpeg -hide_banner …
+                                              │ (líneas siguientes alineadas)
+        """
+        e = self._estilos
+        hora = time.strftime("%H:%M:%S") + f".{int(time.time() * 1000) % 1000:03d}"
+        componente = origen.removeprefix("tamalio.").split(".")[-1]
+        componente = "yt-dlp" if componente == "yt_dlp" else componente
+        componente = "ffmpeg" if componente == "ejecutor_ffmpeg" else componente
+        colores = {logging.DEBUG: e.tenue, logging.INFO: e.info, logging.WARNING: e.aviso}
+        color = colores.get(nivel, e.error)
+        etiqueta = f"{logging.getLevelName(nivel):<7}"
+        barra = e.tenue(e.simbolo("│", "|"))
+        prefijo = f"  {e.tenue(hora)} {color(etiqueta)} {e.info(f'{componente:<22}')} {barra} "
+        sangria = " " * (2 + 12 + 1 + 7 + 1 + 22 + 1) + barra + " "
+        lineas = mensaje.splitlines() or [""]
+        self._permanente(prefijo + lineas[0] + "".join(f"\n{sangria}{linea}" for linea in lineas[1:]))
 
     def mostrar_tabla(self, encabezados: Sequence[str], filas: Sequence[Sequence[object]]) -> None:
         """Ver :meth:`Vista.mostrar_tabla`. La última columna se recorta al ancho de la terminal."""
@@ -347,6 +394,13 @@ class VistaConsola(Vista):
             self._ayuda_teclas = activa
             self._dibujar_vivo()
 
+    def mostrar_accion_pendiente(self, mensaje: str | None) -> None:
+        """Ver :meth:`Vista.mostrar_accion_pendiente`."""
+        with self._candado:
+            self._pendiente = mensaje
+            self._inicio_pendiente = time.monotonic()
+            self._dibujar_vivo()
+
     def establecer_pausa(self, pausada: bool) -> None:
         """Ver :meth:`Vista.establecer_pausa`."""
         with self._candado:
@@ -417,6 +471,8 @@ class VistaConsola(Vista):
     def al_omitir_pista(self, pista: Pista, motivo: str) -> None:
         """Ver :meth:`ObservadorDescargas.al_omitir_pista`."""
         e = self._estilos
+        with self._candado:
+            self._pendiente = None  # El «saltar pista» ya se cumplió.
         self._permanente(self._linea_pista(pista, e.info(e.simbolo("↷", "-")), e.tenue(motivo)))
 
     def al_fallar_pista(self, pista: Pista | None, mensaje: str) -> None:
@@ -432,6 +488,7 @@ class VistaConsola(Vista):
         """Ver :meth:`ObservadorDescargas.al_terminar_tarea`."""
         e = self._estilos
         with self._candado:
+            self._pendiente = None  # Cancelar/salir ya se cumplió.
             if tarea.estado.es_final or tarea.estado is EstadoDescarga.PAUSADA:
                 self._tareas_terminadas += 1
             self._pista = None

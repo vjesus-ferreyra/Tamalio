@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from conftest import RAIZ_PROYECTO
 from tamalio.excepciones.error_formato_fuentes import ErrorFormatoFuentes
 from tamalio.modelos.formato_audio import FormatoAudio
 from tamalio.modelos.plataforma import Plataforma
@@ -12,6 +11,7 @@ from tamalio.servicios.analizador_jsonc import AnalizadorJsonc
 from tamalio.servicios.fabrica_lectores_fuentes import FabricaLectoresFuentes
 from tamalio.servicios.recursos_empaquetados import RecursosEmpaquetados
 from tamalio.servicios.validador_esquema import ValidadorEsquema
+from tests.conftest import RAIZ_PROYECTO
 
 JSONC = AnalizadorJsonc()
 

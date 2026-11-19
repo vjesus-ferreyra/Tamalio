@@ -278,6 +278,10 @@ Así se ve una descarga:
 | `c` | Cancela la tarea actual y sigue con la siguiente. |
 | `q` o `Ctrl+C` | Sale; la tarea actual queda **pausada**. Un segundo `Ctrl+C` fuerza la salida. |
 
+Las órdenes se atienden **al instante**, incluso si `yt-dlp` está esperando una
+respuesta de red: mientras se cumplen, la barra muestra
+`Cancelando tarea · esperando a que termine la petición en curso · 0:00`.
+
 ### Cola de descargas
 
 ```bash
@@ -308,6 +312,59 @@ tamalio convertir --todo -f flac                          # Todo el catálogo
 tamalio convertir --plataforma youtube -f mp3 --conservar-original
 tamalio convertir "~/Música/quetzal/Bandcamp/GHOST DATA" -f alac
 ```
+
+### Modo depuración
+
+```bash
+tamalio --debug descargar https://ghostdata.bandcamp.com/track/fluorite-fault
+TAMALIO_DEBUG=1 tamalio reanudar          # Equivalente con variable de entorno
+```
+
+Muestra, con hora, nivel y componente, la salida de **cada parte** del proceso:
+
+```text
+  23:03:17.947 DEBUG   aplicacion             │ Configuración (~/.config/tamalio/tamalio.toml): {…}
+  23:03:17.948 DEBUG   controlador_descargas  │ Fuente … → plataforma=bandcamp tipo=pista id=…
+  23:03:17.961 DEBUG   conexion_postgres      │ SQL INSERT INTO tareas_descarga … · parámetros=(…)
+  23:03:18.120 DEBUG   yt-dlp                 │ [Bandcamp] fluorite-fault: Downloading webpage
+  23:03:18.726 DEBUG   gestor_descargas       │ Normalizada 1/1: 'Fluorite Fault' · artistas=['GHOST DATA'] …
+  23:03:19.751 DEBUG   ffmpeg                 │ FFmpeg $ ffmpeg -hide_banner -nostdin … -c:a flac …
+  23:03:19.818 DEBUG   etiquetador_audio      │ Etiquetas … → título='Fluorite Fault' álbum=… carátula=812345 bytes
+  23:03:19.819 DEBUG   organizador_biblioteca │ Fichero colocado en ~/Música/quetzal/Bandcamp/…
+```
+
+| Componente | Qué muestra |
+|------------|-------------|
+| `aplicacion` | Argumentos recibidos y configuración efectiva (la contraseña de la BD se oculta). |
+| `controlador_descargas` | Cómo se clasificó cada fuente. |
+| `yt-dlp` / `cliente_yt_dlp` | Salida detallada de yt-dlp (`verbose`), opciones usadas y formato descargado. |
+| `gestor_descargas` | Metadatos normalizados de cada pista, esperas aleatorias, cookies usadas. |
+| `descargador_caratulas` / `urllib3` | Cada URL de carátula probada, código HTTP y tamaño. |
+| `ffmpeg` | Comando exacto y la salida de FFmpeg (flujos, códecs, mapeo). |
+| `etiquetador_audio` | Etiquetas escritas en el fichero. |
+| `conexion_postgres` | Cada consulta SQL con sus parámetros. |
+| `control_ejecucion` | Órdenes del teclado y cambios hechos desde otra terminal. |
+
+Además guarda el **JSON crudo de yt-dlp** de cada fuente en
+`<carpeta de registros>/depuracion/` (en Linux `~/.local/state/tamalio/depuracion/`),
+el mismo tipo de fichero que usan las pruebas en `tests/fixtures/`.
+
+`-v/--detallado` sigue disponible para ver solo los mensajes informativos.
+
+### Borrar los datos de la base de datos
+
+```bash
+tamalio bd borrar                       # Todo: catálogo, cola y sesiones
+tamalio bd borrar --cola                # Solo la cola de descargas
+tamalio bd borrar --catalogo --sesiones
+tamalio bd borrar --cola --confirmar BORRAR   # Sin preguntar (para guiones)
+```
+
+Antes de borrar, Tamalio muestra cuántos registros se perderán, avisa que la
+acción es **irreversible** y pide escribir la palabra `BORRAR` en mayúsculas
+(un «sí» o un Enter cancelan). Sin una terminal interactiva solo se borra con
+`--confirmar BORRAR`. Tus ficheros de audio y de cookies **no** se tocan; para
+respaldar el catálogo antes, usa `tamalio catalogo exportar respaldo.jsonc`.
 
 ### Sesiones (cookies)
 
@@ -412,6 +469,18 @@ TAMALIO_BD_PRUEBAS=postgresql://tamalio:tamalio@localhost:5432/tamalio_pruebas u
 
 La integración continua (`.github/workflows/ci.yml`) ejecuta Ruff y todas las
 pruebas con FFmpeg y PostgreSQL en cada *push*.
+
+### Editor Zed
+
+El repositorio incluye [`.zed/settings.json`](.zed/settings.json), que configura
+**Ruff** como linter y formateador de Python en Zed:
+
+- Al guardar, Ruff ordena las importaciones, aplica las correcciones automáticas
+  y formatea el fichero.
+- Ruff lee su configuración de `[tool.ruff]` en `pyproject.toml`, así que Zed y
+  `uv run ruff check .` reportan exactamente lo mismo.
+- La verificación de tipos sigue a cargo del servidor que trae Zed (basedpyright);
+  el código no tiene errores de tipos en su modo estándar.
 
 ### Convenciones
 

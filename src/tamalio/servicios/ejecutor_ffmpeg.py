@@ -1,6 +1,8 @@
 """Envoltura de los ejecutables ``ffmpeg`` y ``ffprobe``."""
 
 import json
+import logging
+import shlex
 import shutil
 import subprocess
 import threading
@@ -10,6 +12,8 @@ from typing import Any
 
 from tamalio.excepciones.error_dependencia_faltante import ErrorDependenciaFaltante
 from tamalio.excepciones.error_tamalio import ErrorTamalio
+
+registro = logging.getLogger(__name__)
 
 
 class EjecutorFfmpeg:
@@ -76,12 +80,14 @@ class EjecutorFfmpeg:
             "-nostdin",  # Imprescindible: así FFmpeg no «roba» las teclas de control.
             "-y",
             "-loglevel",
-            "error",
+            # En modo depuración FFmpeg informa flujos, códecs y mapeos.
+            "info" if registro.isEnabledFor(logging.DEBUG) else "error",
             "-progress",
             "pipe:1",
             "-nostats",
             *argumentos,
         ]
+        registro.debug("FFmpeg $ %s", shlex.join(comando))
         proceso = subprocess.Popen(
             comando,
             stdout=subprocess.PIPE,
@@ -107,6 +113,8 @@ class EjecutorFfmpeg:
             raise
         codigo = proceso.wait()
         lector.join(timeout=2)
+        if errores and registro.isEnabledFor(logging.DEBUG):
+            registro.debug("FFmpeg (código %s):\n%s", codigo, "".join(errores).rstrip())
         if codigo != 0:
             detalle = "".join(errores).strip().splitlines()[-3:]
             raise ErrorTamalio(f"FFmpeg falló (código {codigo}): {' '.join(detalle) or 'sin detalle'}")

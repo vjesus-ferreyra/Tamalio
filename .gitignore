@@ -41,7 +41,9 @@ coverage.xml
 *.swo
 *~
 *.sublime-workspace
-.zed/
+.zed/*
+# La configuración de Zed del proyecto (Ruff) sí se versiona.
+!.zed/settings.json
 
 # --- Sistemas operativos ---------------------------------------------
 .DS_Store

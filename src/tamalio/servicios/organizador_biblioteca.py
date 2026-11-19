@@ -1,5 +1,6 @@
 """Decide dónde se guarda cada canción dentro de la biblioteca y mueve los ficheros."""
 
+import logging
 import re
 import shutil
 import unicodedata
@@ -7,6 +8,8 @@ from pathlib import Path
 
 from tamalio.modelos.pista import Pista
 from tamalio.modelos.plataforma import Plataforma
+
+registro = logging.getLogger(__name__)
 
 
 class OrganizadorBiblioteca:
@@ -87,6 +90,7 @@ class OrganizadorBiblioteca:
             contador += 1
         # shutil.move funciona incluso entre discos distintos (copia + borra).
         shutil.move(origen, final)
+        registro.debug("Fichero colocado en %s", final)
         return final
 
     @classmethod

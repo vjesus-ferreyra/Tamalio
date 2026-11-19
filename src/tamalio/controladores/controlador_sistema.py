@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tamalio.interfaces.repositorio_sesiones import RepositorioSesiones
 from tamalio.interfaces.vista import Vista
+from tamalio.modelos.conjunto_datos import ConjuntoDatos
 from tamalio.modelos.plataforma import Plataforma
 from tamalio.repositorios.conexion_postgres import ConexionPostgres
 from tamalio.servicios.gestor_sesiones import GestorSesiones
@@ -48,6 +49,48 @@ class ControladorSistema:
         else:
             self._vista.mostrar_info("La base de datos ya estaba al día.")
         self._vista.mostrar_info(conexion.version_servidor())
+        return 0
+
+    #: Palabra que el usuario debe escribir para confirmar el borrado.
+    PALABRA_CONFIRMACION = "BORRAR"
+
+    def borrar_bd(self, conexion: ConexionPostgres, conjuntos: list[ConjuntoDatos], confirmacion: str | None) -> int:
+        """
+        ``tamalio bd borrar``: vacía las tablas elegidas tras una confirmación explícita.
+
+        La confirmación exige escribir la palabra ``BORRAR`` (en mayúsculas), ya
+        sea de forma interactiva o con ``--confirmar BORRAR``. Un «sí» o un Enter
+        no bastan, para que nadie borre su catálogo por accidente.
+
+        Returns:
+            ``0`` si se borró, ``1`` si se canceló.
+        """
+        conteos = conexion.contar(conjuntos)
+        self._vista.mostrar_advertencia("Esta acción es IRREVERSIBLE: los datos borrados no se pueden recuperar.")
+        self._vista.mostrar_tabla(("Se borrará", "Registros"), [(c.descripcion, conteos.get(c, 0)) for c in conjuntos])
+        self._vista.mostrar_info(
+            "Tus ficheros de audio y de cookies NO se borran, solo los registros de la base de datos."
+        )
+        if ConjuntoDatos.CATALOGO in conjuntos:
+            self._vista.mostrar_info("Consejo: antes puedes respaldar con «tamalio catalogo exportar respaldo.jsonc».")
+
+        if confirmacion is None:
+            confirmacion = self._vista.preguntar(
+                f"Escribe {self.PALABRA_CONFIRMACION} (en mayúsculas) para confirmar, o Enter para cancelar"
+            )
+            if confirmacion is None:
+                self._vista.mostrar_error(
+                    "No hay una terminal interactiva para confirmar.",
+                    sugerencia=f"Usa «--confirmar {self.PALABRA_CONFIRMACION}» si de verdad quieres borrar.",
+                )
+                return 1
+        if confirmacion.strip() != self.PALABRA_CONFIRMACION:
+            self._vista.mostrar_info("Cancelado: no se borró nada.")
+            return 1
+
+        conexion.vaciar(conjuntos)
+        total = sum(conteos.get(c, 0) for c in conjuntos)
+        self._vista.mostrar_exito(f"Se borraron {total} registro(s) de: {', '.join(c.descripcion for c in conjuntos)}.")
         return 0
 
     def establecer_sesion(self, sesiones: GestorSesiones, plataforma: Plataforma, ruta: Path) -> int:

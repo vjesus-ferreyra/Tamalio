@@ -1,5 +1,6 @@
 """Mecanismo de pausa, salto y cancelación compartido entre hilos."""
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -7,6 +8,8 @@ from collections.abc import Callable
 from tamalio.excepciones.error_descarga_cancelada import ErrorDescargaCancelada
 from tamalio.modelos.alcance_cancelacion import AlcanceCancelacion
 from tamalio.modelos.estado_descarga import EstadoDescarga
+
+registro = logging.getLogger(__name__)
 
 
 class ControlEjecucion:
@@ -75,6 +78,7 @@ class ControlEjecucion:
     def _solicitar(self, alcance: AlcanceCancelacion) -> None:
         """Guarda la petición de cancelación (gana la de mayor alcance) y quita la pausa."""
         orden = list(AlcanceCancelacion)
+        registro.debug("Orden del usuario: detener (alcance=%s)", alcance.value)
         with self._candado:
             if self._alcance is None or orden.index(alcance) > orden.index(self._alcance):
                 self._alcance = alcance
@@ -142,6 +146,8 @@ class ControlEjecucion:
         self._ultima_consulta = ahora
         estado = self._consultar()
         if estado is EstadoDescarga.PAUSADA:
+            registro.debug("Otra terminal pausó la tarea.")
             raise ErrorDescargaCancelada(AlcanceCancelacion.TAREA, pausar=True)
         if estado is EstadoDescarga.CANCELADA:
+            registro.debug("Otra terminal canceló la tarea.")
             raise ErrorDescargaCancelada(AlcanceCancelacion.TAREA, pausar=False)

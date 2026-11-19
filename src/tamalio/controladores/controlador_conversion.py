@@ -60,7 +60,11 @@ class ControladorConversion:
         """Convierte los ficheros indicados (o el catálogo completo/por plataforma)."""
         objetivos: list[tuple[Path, Pista | None]] = []
         if todo or plataforma:
-            objetivos += [(p.ruta_archivo, p) for p in self._catalogo.listar(plataforma) if p.descargada]
+            objetivos += [
+                (p.ruta_archivo, p)
+                for p in self._catalogo.listar(plataforma)
+                if p.ruta_archivo is not None and p.descargada
+            ]
         for ruta in rutas:
             ruta = ruta.expanduser()
             ficheros = (

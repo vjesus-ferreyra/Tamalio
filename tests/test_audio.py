@@ -5,6 +5,7 @@ import subprocess
 
 import mutagen
 import pytest
+import requests
 from mutagen.flac import Picture
 
 from tamalio.modelos.caratula import Caratula
@@ -58,6 +59,7 @@ def test_conversion_y_etiquetado(generar_audio, imagen_jpeg, tmp_path, formato, 
 
     EtiquetadorAudio().etiquetar(salida, PISTA, imagen_jpeg)
     audio = mutagen.File(salida, easy=False)
+    assert audio is not None and audio.tags is not None
     texto = str(audio.tags)
     for esperado in ("Beyond Eternity", "Symphony of the Shepherdess", "GHOST DATA", "Skye Light", "2022"):
         assert esperado in texto
@@ -75,17 +77,14 @@ def test_conversion_y_etiquetado(generar_audio, imagen_jpeg, tmp_path, formato, 
 
 
 def test_caratula_16_9_se_recorta_a_cuadrado(tmp_path, imagen_jpeg):
-    class SesionFalsa:
-        headers: dict = {}  # noqa: RUF012
+    class SesionFalsa(requests.Session):
+        """Sesión HTTP que responde siempre con la imagen 16:9 sin tocar la red."""
 
-        def get(self, url, timeout):
-            class Respuesta:
-                content = imagen_jpeg
-
-                def raise_for_status(self):
-                    pass
-
-            return Respuesta()
+        def get(self, url, params=None, **kwargs):
+            respuesta = requests.Response()
+            respuesta.status_code = 200
+            respuesta._content = imagen_jpeg
+            return respuesta
 
     descargador = DescargadorCaratulas(tmp_path, EjecutorFfmpeg(), sesion=SesionFalsa())
     datos = descargador.obtener(Caratula("https://i.ytimg.com/vi/x/maxresdefault.jpg", recortar_cuadrada=True))

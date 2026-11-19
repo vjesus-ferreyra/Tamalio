@@ -38,13 +38,13 @@ class ParserEspanol(argparse.ArgumentParser):
             texto = texto.replace(original, traducido)
         return texto
 
-    def format_usage(self) -> str:
-        """Uso abreviado en español."""
-        return self._traducir(super().format_usage())
+    def format_usage(self, formatter: argparse.HelpFormatter | None = None) -> str:
+        """Uso abreviado en español (misma firma que ``ArgumentParser`` en Python ≥ 3.14)."""
+        return self._traducir(super().format_usage(formatter))
 
-    def format_help(self) -> str:
-        """Ayuda completa en español."""
-        return self._traducir(super().format_help())
+    def format_help(self, formatter: argparse.HelpFormatter | None = None) -> str:
+        """Ayuda completa en español (misma firma que ``ArgumentParser`` en Python ≥ 3.14)."""
+        return self._traducir(super().format_help(formatter))
 
     def error(self, message: str) -> NoReturn:
         """Muestra el uso y el error traducido; termina con código 2 (convención POSIX)."""

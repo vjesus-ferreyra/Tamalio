@@ -23,9 +23,9 @@ class ManejadorRegistroConsola(logging.Handler):
         super().__init__(nivel)
         self._vista = vista
 
-    def emit(self, registro: logging.LogRecord) -> None:
-        """Formatea el registro y lo pasa a la vista."""
+    def emit(self, record: logging.LogRecord) -> None:
+        """Formatea el registro y lo pasa a la vista (el nombre ``record`` lo exige ``logging.Handler``)."""
         try:
-            self._vista.mostrar_registro(registro.levelno, registro.name, registro.getMessage())
+            self._vista.mostrar_registro(record.levelno, record.name, record.getMessage())
         except Exception:
-            self.handleError(registro)
+            self.handleError(record)

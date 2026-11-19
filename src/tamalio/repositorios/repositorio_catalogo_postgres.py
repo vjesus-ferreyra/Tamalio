@@ -1,7 +1,9 @@
 """Implementación PostgreSQL del catálogo musical."""
 
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
+
+from psycopg import sql
 
 from tamalio.interfaces.repositorio_catalogo import RepositorioCatalogo
 from tamalio.modelos.caratula import Caratula
@@ -21,10 +23,29 @@ class RepositorioCatalogoPostgres(RepositorioCatalogo):
         conexion: Conexión compartida.
     """
 
-    _COLUMNAS = (
-        "plataforma, id_externo, url, titulo, album, artistas, artistas_album, numero_pista, total_pistas, "
-        "generos, anio, duracion, url_caratula, es_sencillo, codec_origen, bitrate_origen, formato, ruta_archivo"
+    #: Columnas en el orden en que se insertan y leen.
+    _CAMPOS: ClassVar[tuple[str, ...]] = (
+        "plataforma",
+        "id_externo",
+        "url",
+        "titulo",
+        "album",
+        "artistas",
+        "artistas_album",
+        "numero_pista",
+        "total_pistas",
+        "generos",
+        "anio",
+        "duracion",
+        "url_caratula",
+        "es_sencillo",
+        "codec_origen",
+        "bitrate_origen",
+        "formato",
+        "ruta_archivo",
     )
+    #: Lista de columnas como SQL seguro (identificadores escapados por psycopg).
+    _COLUMNAS: ClassVar[sql.Composed] = sql.SQL(", ").join(sql.Identifier(c) for c in _CAMPOS)
 
     def __init__(self, conexion: ConexionPostgres) -> None:
         self._bd = conexion
@@ -51,51 +72,60 @@ class RepositorioCatalogoPostgres(RepositorioCatalogo):
             "formato": pista.formato,
             "ruta_archivo": str(pista.ruta_archivo) if pista.ruta_archivo else None,
         }
-        marcadores = ", ".join(f"%({clave})s" for clave in valores)
-        actualizaciones = ", ".join(
-            f"{clave} = EXCLUDED.{clave}" for clave in valores if clave not in {"plataforma", "id_externo"}
+        # Se compone con psycopg.sql: los nombres de columna se escapan como
+        # identificadores y los valores viajan como parámetros (sin inyección SQL).
+        actualizables = [c for c in self._CAMPOS if c not in {"plataforma", "id_externo"}]
+        consulta = sql.SQL(
+            "INSERT INTO pistas ({columnas}) VALUES ({marcadores}) "
+            "ON CONFLICT (plataforma, id_externo) DO UPDATE SET {actualizaciones}"
+        ).format(
+            columnas=self._COLUMNAS,
+            marcadores=sql.SQL(", ").join(sql.Placeholder(c) for c in self._CAMPOS),
+            actualizaciones=sql.SQL(", ").join(
+                sql.SQL("{0} = EXCLUDED.{0}").format(sql.Identifier(c)) for c in actualizables
+            ),
         )
-        self._bd.conexion.execute(
-            f"INSERT INTO pistas ({self._COLUMNAS}) VALUES ({marcadores}) "
-            f"ON CONFLICT (plataforma, id_externo) DO UPDATE SET {actualizaciones}",
-            valores,
-        )
+        self._bd.ejecutar(consulta, valores)
 
     def obtener(self, plataforma: Plataforma, id_externo: str) -> Pista | None:
         """Ver :meth:`RepositorioCatalogo.obtener`."""
-        fila = self._bd.conexion.execute(
-            f"SELECT {self._COLUMNAS} FROM pistas WHERE plataforma = %s AND id_externo = %s",
+        fila = self._bd.una(
+            sql.SQL("SELECT {} FROM pistas WHERE plataforma = %s AND id_externo = %s").format(self._COLUMNAS),
             (plataforma.value, id_externo),
-        ).fetchone()
+        )
         return self._a_pista(fila) if fila else None
 
     def buscar_por_ruta(self, ruta: Path) -> Pista | None:
         """Ver :meth:`RepositorioCatalogo.buscar_por_ruta`."""
-        fila = self._bd.conexion.execute(
-            f"SELECT {self._COLUMNAS} FROM pistas WHERE ruta_archivo = %s", (str(ruta),)
-        ).fetchone()
+        fila = self._bd.una(
+            sql.SQL("SELECT {} FROM pistas WHERE ruta_archivo = %s").format(self._COLUMNAS), (str(ruta),)
+        )
         return self._a_pista(fila) if fila else None
 
     def listar(self, plataforma: Plataforma | None = None, texto: str | None = None) -> list[Pista]:
         """Ver :meth:`RepositorioCatalogo.listar`."""
-        condiciones: list[str] = []
+        condiciones: list[sql.SQL] = []
         parametros: list[Any] = []
         if plataforma is not None:
-            condiciones.append("plataforma = %s")
+            condiciones.append(sql.SQL("plataforma = %s"))
             parametros.append(plataforma.value)
         if texto:
             # ILIKE sin distinguir mayúsculas; se busca también dentro de los arreglos de artistas.
             condiciones.append(
-                "(titulo ILIKE %s OR album ILIKE %s OR array_to_string(artistas, ' ') ILIKE %s "
-                "OR array_to_string(artistas_album, ' ') ILIKE %s)"
+                sql.SQL(
+                    "(titulo ILIKE %s OR album ILIKE %s OR array_to_string(artistas, ' ') ILIKE %s "
+                    "OR array_to_string(artistas_album, ' ') ILIKE %s)"
+                )
             )
             parametros.extend([f"%{texto}%"] * 4)
-        donde = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
-        filas = self._bd.conexion.execute(
-            f"SELECT {self._COLUMNAS} FROM pistas {donde} "
-            "ORDER BY plataforma, artistas_album[1], album, numero_pista NULLS LAST, titulo",
+        donde = sql.SQL("WHERE {}").format(sql.SQL(" AND ").join(condiciones)) if condiciones else sql.SQL("")
+        filas = self._bd.todas(
+            sql.SQL(
+                "SELECT {} FROM pistas {} "
+                "ORDER BY plataforma, artistas_album[1], album, numero_pista NULLS LAST, titulo"
+            ).format(self._COLUMNAS, donde),
             parametros,
-        ).fetchall()
+        )
         return [self._a_pista(fila) for fila in filas]
 
     @staticmethod

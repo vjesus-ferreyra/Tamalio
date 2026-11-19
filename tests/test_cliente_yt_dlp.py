@@ -33,17 +33,17 @@ def test_desafio_se_traduce_a_bloqueo_sin_coletilla(tmp_path):
     assert error.mensaje.endswith("chrome-152:windows-10")
 
 
-def test_desafio_con_suplantacion_forzada_reintenta_sin_ella(tmp_path, detector):
+def test_desafio_con_suplantacion_forzada_reintenta_sin_ella(tmp_path, detector, monkeypatch):
     instancia = cliente(tmp_path, "chrome")
     llamadas = []
 
-    def extraer_con(opciones, fuente):
+    def extraer_con(opciones, fuente, punto_control=None):
         llamadas.append("impersonate" in opciones)
         if "impersonate" in opciones:
             raise instancia._traducir(Exception(DESAFIO), Plataforma.BANDCAMP)
         return {"id": "968977920", "title": "Fluorite Fault"}
 
-    instancia._extraer_con = extraer_con
+    monkeypatch.setattr(instancia, "_extraer_con", extraer_con)
     info = instancia.extraer(detector.detectar("https://ghostdata.bandcamp.com/track/fluorite-fault"))
     assert info["title"] == "Fluorite Fault"
     assert llamadas == [True, False]

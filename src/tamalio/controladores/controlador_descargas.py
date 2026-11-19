@@ -1,6 +1,7 @@
 """Controlador de los comandos de descarga y de la cola (descargar, reanudar, pausar…)."""
 
 import dataclasses
+import logging
 import signal
 import time
 from collections.abc import Iterable
@@ -23,6 +24,8 @@ from tamalio.servicios.fabrica_lectores_fuentes import FabricaLectoresFuentes
 from tamalio.servicios.gestor_descargas import GestorDescargas
 from tamalio.servicios.gestor_sesiones import GestorSesiones
 from tamalio.servicios.lector_teclado import LectorTeclado
+
+registro = logging.getLogger(__name__)
 
 
 class ControladorDescargas:
@@ -93,6 +96,15 @@ class ControladorDescargas:
             if formato is not None and fuente.formato is None:
                 # El formato de la línea de comandos es el predeterminado; el del fichero gana.
                 fuente = dataclasses.replace(fuente, formato=formato)
+            registro.debug(
+                "Fuente %s → plataforma=%s tipo=%s id=%s formato=%s metadatos=%r",
+                fuente.url_original,
+                fuente.plataforma.value,
+                fuente.tipo.value,
+                fuente.identificador,
+                fuente.formato.value if fuente.formato else None,
+                fuente.metadatos,
+            )
             tarea, nueva = self._tareas.agregar(fuente)
             if not nueva:
                 self._vista.mostrar_info(f"Ya estaba en la cola (tarea {tarea.id}): {fuente.url}")
@@ -194,6 +206,7 @@ class ControladorDescargas:
                 raise KeyboardInterrupt
             control.detener_todo()
             self._vista.mostrar_advertencia("Deteniendo con cuidado… (Ctrl+C otra vez para forzar)")
+            self._vista.mostrar_accion_pendiente("Saliendo")
 
         manejador_previo = signal.signal(signal.SIGINT, al_ctrl_c)
         self._vista.iniciar_lote(len(tareas))
@@ -228,12 +241,15 @@ class ControladorDescargas:
         elif tecla == "s":
             control.saltar_pista()
             self._vista.mostrar_info("Saltando la pista actual…")
+            self._vista.mostrar_accion_pendiente("Saltando pista")
         elif tecla == "c":
             control.cancelar_tarea()
             self._vista.mostrar_advertencia("Cancelando la tarea actual…")
+            self._vista.mostrar_accion_pendiente("Cancelando tarea")
         elif tecla == "q":
             control.detener_todo()
             self._vista.mostrar_advertencia("Deteniendo… la tarea actual quedará pausada.")
+            self._vista.mostrar_accion_pendiente("Saliendo")
 
     def _pedir_cookies(self, plataforma: Plataforma, error: str | None, teclado: LectorTeclado) -> str | None:
         """Pregunta por el fichero de cookies suspendiendo la lectura de teclas."""

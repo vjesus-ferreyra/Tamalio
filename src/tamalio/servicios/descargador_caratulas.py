@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import ClassVar
 
@@ -59,16 +60,20 @@ class DescargadorCaratulas:
         self._sesion = sesion or requests.Session()
         self._sesion.headers.update(self.CABECERAS)
 
-    def obtener(self, caratula: Caratula) -> bytes | None:
+    def obtener(self, caratula: Caratula, punto_control: Callable[[], None] | None = None) -> bytes | None:
         """
         Devuelve los bytes JPEG/PNG de la carátula o ``None`` si ninguna URL funcionó.
+
+        Args:
+            caratula: Carátula con sus URL candidatas.
+            punto_control: Se ejecuta antes de probar cada URL (permite cancelar).
         """
         clave = hashlib.sha256(f"{caratula.url}|{caratula.recortar_cuadrada}".encode()).hexdigest()[:32]
         en_cache = self._carpeta / f"{clave}.jpg"
         if en_cache.is_file():
             return en_cache.read_bytes()
 
-        crudo = self._descargar_primera(caratula.candidatas())
+        crudo = self._descargar_primera(caratula.candidatas(), punto_control)
         if crudo is None:
             return None
         self._carpeta.mkdir(parents=True, exist_ok=True)
@@ -78,9 +83,12 @@ class DescargadorCaratulas:
             registro.warning("No se pudo procesar la carátula (%s); se usa la imagen original.", error)
             return crudo if self.tipo_mime(crudo) else None
 
-    def _descargar_primera(self, urls: list[str]) -> bytes | None:
+    def _descargar_primera(self, urls: list[str], punto_control: Callable[[], None] | None = None) -> bytes | None:
         """Descarga la primera URL que responda con una imagen válida."""
         for url in urls:
+            if punto_control is not None:
+                punto_control()
+            registro.debug("Carátula: probando %s", url)
             try:
                 respuesta = self._sesion.get(url, timeout=self._tiempo_espera)
                 respuesta.raise_for_status()
@@ -88,6 +96,9 @@ class DescargadorCaratulas:
                 registro.debug("Carátula no disponible en %s: %s", url, error)
                 continue
             datos = respuesta.content
+            registro.debug(
+                "Carátula: HTTP %s · %d bytes · %s", respuesta.status_code, len(datos), self.tipo_mime(datos, True)
+            )
             # Se descartan respuestas diminutas (marcadores de «imagen no disponible»).
             if len(datos) > 2048 and self.tipo_mime(datos, permitir_webp=True):
                 return datos

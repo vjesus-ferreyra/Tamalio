@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from tamalio import ALIAS_AUTOR, NOMBRE, __version__
+from tamalio.modelos.conjunto_datos import ConjuntoDatos
 from tamalio.modelos.estado_descarga import EstadoDescarga
 from tamalio.modelos.formato_audio import FormatoAudio
 from tamalio.modelos.plataforma import Plataforma
@@ -26,7 +27,7 @@ class AnalizadorArgumentos:
         tamalio catalogo   listar | exportar FICHERO | importar FICHERO [--descargar]
         tamalio convertir  [RUTA…] (-f FORMATO) [--plataforma P | --todo]
         tamalio sesion     establecer PLATAFORMA RUTA | listar | quitar PLATAFORMA
-        tamalio bd         iniciar
+        tamalio bd         iniciar | borrar [--catalogo] [--cola] [--sesiones] [--confirmar BORRAR]
         tamalio doctor
 
     Args:
@@ -70,7 +71,13 @@ class AnalizadorArgumentos:
         parser.add_argument(
             "--version", action="version", version=f"{NOMBRE} {__version__}", help="Muestra la versión."
         )
-        parser.add_argument("-v", "--detallado", action="store_true", help="Muestra detalles y mensajes de depuración.")
+        parser.add_argument("-v", "--detallado", action="store_true", help="Muestra detalles y mensajes informativos.")
+        parser.add_argument(
+            "--debug",
+            action="store_true",
+            help="Modo depuración: muestra la salida de cada parte (yt-dlp, FFmpeg, SQL, carátulas, etiquetas) "
+            "y guarda el JSON crudo de yt-dlp. También con TAMALIO_DEBUG=1.",
+        )
         parser.add_argument("--sin-color", action="store_true", help="Desactiva los colores.")
         parser.add_argument("--config", type=Path, metavar="RUTA", help="Fichero tamalio.toml alternativo.")
 
@@ -160,6 +167,24 @@ class AnalizadorArgumentos:
         bd = self._nuevo(sub, "bd", "Administra la base de datos PostgreSQL.")
         acciones_bd = bd.add_subparsers(dest="accion", title="acciones", metavar="ACCION", required=True)
         self._nuevo(acciones_bd, "iniciar", "Crea o actualiza las tablas (idempotente).")
+        borrar = self._nuevo(
+            acciones_bd,
+            "borrar",
+            "Elimina DE FORMA IRREVERSIBLE los datos guardados (no borra tus ficheros de audio).",
+        )
+        for conjunto in ConjuntoDatos:
+            borrar.add_argument(
+                f"--{conjunto.value}",
+                dest="conjuntos",
+                action="append_const",
+                const=conjunto.value,
+                help=f"Borra: {conjunto.descripcion.lower()}. Sin estas opciones se borra todo.",
+            )
+        borrar.add_argument(
+            "--confirmar",
+            metavar="BORRAR",
+            help="Confirma sin preguntar (para guiones); debe ser exactamente la palabra BORRAR.",
+        )
 
         self._nuevo(sub, "doctor", "Revisa que FFmpeg, QuickJS, PostgreSQL y demás estén listos.")
         return parser

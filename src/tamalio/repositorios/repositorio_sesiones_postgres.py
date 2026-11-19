@@ -20,14 +20,12 @@ class RepositorioSesionesPostgres(RepositorioSesiones):
 
     def obtener(self, plataforma: Plataforma) -> Path | None:
         """Ver :meth:`RepositorioSesiones.obtener`."""
-        fila = self._bd.conexion.execute(
-            "SELECT ruta_cookies FROM sesiones_plataforma WHERE plataforma = %s", (plataforma.value,)
-        ).fetchone()
+        fila = self._bd.una("SELECT ruta_cookies FROM sesiones_plataforma WHERE plataforma = %s", (plataforma.value,))
         return Path(fila["ruta_cookies"]) if fila else None
 
     def guardar(self, plataforma: Plataforma, ruta: Path) -> None:
         """Ver :meth:`RepositorioSesiones.guardar`."""
-        self._bd.conexion.execute(
+        self._bd.ejecutar(
             "INSERT INTO sesiones_plataforma (plataforma, ruta_cookies) VALUES (%s, %s) "
             "ON CONFLICT (plataforma) DO UPDATE SET ruta_cookies = EXCLUDED.ruta_cookies",
             (plataforma.value, str(ruta)),
@@ -35,12 +33,10 @@ class RepositorioSesionesPostgres(RepositorioSesiones):
 
     def eliminar(self, plataforma: Plataforma) -> bool:
         """Ver :meth:`RepositorioSesiones.eliminar`."""
-        cursor = self._bd.conexion.execute("DELETE FROM sesiones_plataforma WHERE plataforma = %s", (plataforma.value,))
+        cursor = self._bd.ejecutar("DELETE FROM sesiones_plataforma WHERE plataforma = %s", (plataforma.value,))
         return cursor.rowcount > 0
 
     def listar(self) -> dict[Plataforma, Path]:
         """Ver :meth:`RepositorioSesiones.listar`."""
-        filas = self._bd.conexion.execute(
-            "SELECT plataforma, ruta_cookies FROM sesiones_plataforma ORDER BY plataforma"
-        ).fetchall()
+        filas = self._bd.todas("SELECT plataforma, ruta_cookies FROM sesiones_plataforma ORDER BY plataforma")
         return {Plataforma(fila["plataforma"]): Path(fila["ruta_cookies"]) for fila in filas}

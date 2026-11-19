@@ -5,10 +5,20 @@ Los fixtures de ``tests/fixtures`` son los JSON originales de cada plataforma
 (reducidos: sin URL firmadas ni listas de formatos completas).
 """
 
+import pytest
+
 from tamalio.extractores.fabrica_extractores import FabricaExtractores
+from tamalio.modelos.caratula import Caratula
+from tamalio.modelos.pista import Pista
 from tamalio.modelos.plataforma import Plataforma
 
 FABRICA = FabricaExtractores()
+
+
+def caratula(pista: Pista) -> Caratula:
+    """Devuelve la carátula comprobando que exista (y que el verificador de tipos lo sepa)."""
+    assert pista.caratula is not None
+    return pista.caratula
 
 
 def normalizar(cargar_fixture, detector, nombre, plataforma, **metadatos):
@@ -31,17 +41,17 @@ def test_pista_youtube_topic(cargar_fixture, detector):
     assert (pista.numero_pista, pista.total_pistas) == (1, 1)
     assert pista.url == "https://www.youtube.com/watch?v=FB9u24ZpDek"
     # La mejor miniatura tiene preference=0 (webp 1920×1080) y se recorta a cuadrado.
-    assert pista.caratula.url.endswith("/maxresdefault.webp")
-    assert pista.caratula.recortar_cuadrada
+    assert caratula(pista).url.endswith("/maxresdefault.webp")
+    assert caratula(pista).recortar_cuadrada
 
 
 def test_album_youtube_usa_penultima_miniatura_como_caratula(cargar_fixture, detector):
     info = cargar_fixture("album_youtube")
     pistas = normalizar(cargar_fixture, detector, "album_youtube", Plataforma.YOUTUBE)
     esperada = info["thumbnails"][len(info["thumbnails"]) - 2]["url"]
-    assert all(p.caratula.url == esperada for p in pistas)
-    assert pistas[0].caratula.alternativas[0] == info["thumbnails"][-1]["url"]
-    assert not pistas[0].caratula.recortar_cuadrada
+    assert all(caratula(p).url == esperada for p in pistas)
+    assert caratula(pistas[0]).alternativas[0] == info["thumbnails"][-1]["url"]
+    assert not caratula(pistas[0]).recortar_cuadrada
 
 
 def test_album_youtube_con_videos_oficiales(cargar_fixture, detector):
@@ -77,7 +87,7 @@ def test_pista_soundcloud(cargar_fixture, detector):
     assert pista.generos == ["Trance"]
     assert pista.anio == 2017
     assert pista.es_sencillo
-    assert pista.caratula.url.endswith("-original.jpg")
+    assert caratula(pista).url.endswith("-original.jpg")
 
 
 def test_album_soundcloud(cargar_fixture, detector):
@@ -90,8 +100,8 @@ def test_album_soundcloud(cargar_fixture, detector):
     assert {p.album for p in pistas} == {"Loose Dirt"}
     assert {p.anio for p in pistas} == {2011}
     # Todas comparten la carátula del set (no la de cada pista).
-    assert len({p.caratula.url for p in pistas}) == 1
-    assert "artworks-000011219468" in pistas[0].caratula.url
+    assert len({caratula(p).url for p in pistas}) == 1
+    assert "artworks-000011219468" in caratula(pistas[0]).url
 
 
 # ---------------------------------------------------------------------- #
@@ -105,8 +115,8 @@ def test_pista_bandcamp(cargar_fixture, detector):
     # «Houston» es la ubicación del artista, no un género.
     assert pista.generos == ["Aether Pop", "Electronic", "Progressive House", "Dreamsynth"]
     # _5.jpg (700 px) → _0.jpg (original) con respaldo _10 y la original recibida.
-    assert pista.caratula.url == "https://f4.bcbits.com/img/a1074683926_0.jpg"
-    assert pista.caratula.alternativas == (
+    assert caratula(pista).url == "https://f4.bcbits.com/img/a1074683926_0.jpg"
+    assert caratula(pista).alternativas == (
         "https://f4.bcbits.com/img/a1074683926_10.jpg",
         "https://f4.bcbits.com/img/a1074683926_5.jpg",
     )
@@ -128,3 +138,34 @@ def test_sin_agregar_invitados(cargar_fixture, detector):
     extractor = FabricaExtractores(agregar_invitados=False).obtener(Plataforma.BANDCAMP)
     pistas = extractor.normalizar(info, detector.detectar(info["webpage_url"]))
     assert pistas[1].artistas == ["GHOST DATA"]
+
+
+# ---------------------------------------------------------------------- #
+# Prefijos con varios artistas
+# ---------------------------------------------------------------------- #
+TITULO_GTA = (
+    "Justice, Tame Impala, SZA, Grand Theft Auto VI & King Gizzard & the Lizard Wizard - "
+    "Flower In A Hurricane (feat. Tame Impala, SZA, King Gizzard & the Lizard Wizard) [from GTAVI]"
+)
+ESPERADO_GTA = "Flower In A Hurricane (feat. Tame Impala, SZA, King Gizzard & the Lizard Wizard) [from GTAVI]"
+
+
+@pytest.mark.parametrize(
+    "artistas",
+    [["Justice"], ["Tame Impala"], ["Justice", "Tame Impala", "SZA", "King Gizzard & the Lizard Wizard"], None],
+)
+def test_prefijo_con_varios_artistas_se_quita(detector, artistas):
+    info = {"id": "FB9u24ZpDek", "title": TITULO_GTA, "artists": artistas, "uploader": "JusticeVEVO"}
+    fuente = detector.detectar("https://youtu.be/FB9u24ZpDek")
+    (pista,) = FABRICA.obtener(Plataforma.YOUTUBE).normalizar(info, fuente)
+    assert pista.titulo == ESPERADO_GTA
+    # «& the Lizard Wizard» no se separa: es parte del nombre de la banda.
+    assert "King Gizzard & the Lizard Wizard" in pista.artistas
+    assert "the Lizard Wizard" not in pista.artistas
+
+
+def test_feat_entre_parentesis_conserva_su_posicion(detector):
+    info = {"id": "FB9u24ZpDek", "title": "Canción (ft. Ana & Luis) [Remix]", "artists": ["Yo"]}
+    (pista,) = FABRICA.obtener(Plataforma.YOUTUBE).normalizar(info, detector.detectar("https://youtu.be/FB9u24ZpDek"))
+    assert pista.titulo == "Canción (feat. Ana & Luis) [Remix]"
+    assert pista.artistas == ["Yo", "Ana", "Luis"]

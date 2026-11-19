@@ -1,6 +1,5 @@
 """Pruebas de exportación e importación del catálogo entre «equipos»."""
 
-from dobles.repositorio_catalogo_memoria import RepositorioCatalogoMemoria
 from tamalio.modelos.pista import Pista
 from tamalio.modelos.plataforma import Plataforma
 from tamalio.servicios.analizador_jsonc import AnalizadorJsonc
@@ -8,6 +7,7 @@ from tamalio.servicios.exportador_catalogo import ExportadorCatalogo
 from tamalio.servicios.importador_catalogo import ImportadorCatalogo
 from tamalio.servicios.recursos_empaquetados import RecursosEmpaquetados
 from tamalio.servicios.validador_esquema import ValidadorEsquema
+from tests.dobles.repositorio_catalogo_memoria import RepositorioCatalogoMemoria
 
 
 def crear_pista(raiz, numero):
@@ -49,8 +49,9 @@ def test_exportar_e_importar_entre_equipos(tmp_path):
     resultado = ImportadorCatalogo(catalogo_b, raiz_b).importar(fichero)
     assert [p.titulo for p in resultado.vinculadas] == ["Pista 1"]
     assert [p.titulo for p in resultado.faltantes] == ["Pista 2"]
-    assert catalogo_b.obtener(Plataforma.BANDCAMP, "1").descargada
-    assert not catalogo_b.obtener(Plataforma.BANDCAMP, "2").descargada
+    primera, segunda_pista = catalogo_b.obtener(Plataforma.BANDCAMP, "1"), catalogo_b.obtener(Plataforma.BANDCAMP, "2")
+    assert primera is not None and primera.descargada
+    assert segunda_pista is not None and not segunda_pista.descargada
 
     # Importar de nuevo no duplica nada.
     segunda = ImportadorCatalogo(catalogo_b, raiz_b).importar(fichero)

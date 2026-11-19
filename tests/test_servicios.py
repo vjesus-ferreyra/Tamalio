@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from dobles.repositorio_sesiones_memoria import RepositorioSesionesMemoria
 from tamalio.configuracion.configuracion import Configuracion
 from tamalio.excepciones.error_descarga_cancelada import ErrorDescargaCancelada
 from tamalio.excepciones.error_tamalio import ErrorTamalio
@@ -19,6 +18,7 @@ from tamalio.servicios.control_ejecucion import ControlEjecucion
 from tamalio.servicios.gestor_sesiones import GestorSesiones
 from tamalio.servicios.organizador_biblioteca import OrganizadorBiblioteca
 from tamalio.servicios.temporizador_humano import TemporizadorHumano
+from tests.dobles.repositorio_sesiones_memoria import RepositorioSesionesMemoria
 
 
 # ---------------------------------------------------------------------- #

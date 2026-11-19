@@ -73,3 +73,13 @@ class Vista(ObservadorDescargas):
     @abstractmethod
     def establecer_pausa(self, pausada: bool) -> None:
         """Refleja visualmente que la descarga está en pausa."""
+
+    @abstractmethod
+    def mostrar_accion_pendiente(self, mensaje: str | None) -> None:
+        """
+        Muestra que una orden del usuario (saltar, cancelar, salir) está en curso.
+
+        Detener una petición de red no es instantáneo; este aviso permanece en
+        pantalla, con el tiempo transcurrido, hasta que la orden se cumple.
+        ``None`` lo retira.
+        """
