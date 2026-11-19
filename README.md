@@ -551,6 +551,7 @@ tamalio/
 │   ├── servicios/                  yt-dlp, FFmpeg, mutagen, cola, anti-bloqueo…
 │   └── vistas/                     Consola, barras de progreso, argumentos (Vista)
 ├── tests/                          pytest + fixtures reales de yt-dlp
+├── AGENTS.md · CLAUDE.md          Guía para agentes de IA (Claude Code, Codex, Zed AI…)
 ├── .editorconfig · .gitattributes · .gitignore · .env.ejemplo · .python-version
 ├── pyproject.toml                  Proyecto, dependencias, Ruff y pytest
 └── uv.lock                         Versiones exactas (instalación reproducible)
