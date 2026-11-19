@@ -573,7 +573,7 @@ Copyright © 2026 Víctor Jesús Torres Ferreyra (*Quetzal Nocturno*).
 Tamalio es **software libre**: puedes usarlo, estudiarlo, modificarlo y
 redistribuirlo bajo los términos de la **Licencia Pública General de GNU,
 versión 3 o (a tu elección) cualquier versión posterior** (GPL-3.0-or-later).
-El texto completo está en [`LICENSE`](LICENSE).
+El texto completo está en [`LICENSE`](./LICENSE.txt).
 
 En resumen: si distribuyes Tamalio o una versión modificada, debes hacerlo con
 la misma licencia y publicando el código fuente. Se distribuye **sin ninguna
