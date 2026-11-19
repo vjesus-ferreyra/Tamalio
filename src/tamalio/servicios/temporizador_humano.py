@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Víctor Jesús Torres Ferreyra (Quetzal Nocturno)
+# Tamalio es software libre: consulta el fichero LICENSE en la raíz del proyecto.
+
 """Esperas aleatorias que imitan el ritmo de una persona para evitar bloqueos (HTTP 403/429)."""
 
 import random

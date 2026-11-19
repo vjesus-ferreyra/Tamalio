@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Víctor Jesús Torres Ferreyra (Quetzal Nocturno)
+# Tamalio es software libre: consulta el fichero LICENSE en la raíz del proyecto.
+
 """Excepción usada internamente para interrumpir una descarga en curso."""
 
 from tamalio.excepciones.error_tamalio import ErrorTamalio

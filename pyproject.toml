@@ -8,6 +8,9 @@ version = "0.1.0"
 description = "Extractor de música Hi-Fi desde YouTube, YouTube Music, SoundCloud y Bandcamp."
 readme = "README.md"
 requires-python = ">=3.15"
+# Licencia en formato SPDX (PEP 639); el texto completo está en LICENSE.
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [{ name = "Víctor Jesús Torres Ferreyra (Quetzal Nocturno)" }]
 keywords = ["musica", "audio", "hi-fi", "yt-dlp", "youtube-music", "soundcloud", "bandcamp", "cli"]
 classifiers = [

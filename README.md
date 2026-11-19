@@ -15,6 +15,7 @@ descargas cuando quieras, incluso desde otra terminal.
 | **Versión** | 0.1.0 |
 | **Python** | 3.15 o superior |
 | **Paradigma** | Programación orientada a objetos, patrón MVC |
+| **Licencia** | [GPL-3.0-or-later](LICENSE) |
 | **Uso** | Personal y no comercial |
 
 ---
@@ -32,6 +33,7 @@ descargas cuando quieras, incluso desde otra terminal.
 - [Riesgos y cómo se mitigan](#riesgos-y-cómo-se-mitigan)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Documentación adicional](#documentación-adicional)
+- [Licencia](#licencia)
 
 ---
 
@@ -564,4 +566,27 @@ tamalio/
 
 ---
 
-Hecho con 🌽 por **Quetzal Nocturno** · Uso personal y no comercial.
+## Licencia
+
+Copyright © 2026 Víctor Jesús Torres Ferreyra (*Quetzal Nocturno*).
+
+Tamalio es **software libre**: puedes usarlo, estudiarlo, modificarlo y
+redistribuirlo bajo los términos de la **Licencia Pública General de GNU,
+versión 3 o (a tu elección) cualquier versión posterior** (GPL-3.0-or-later).
+El texto completo está en [`LICENSE`](LICENSE).
+
+En resumen: si distribuyes Tamalio o una versión modificada, debes hacerlo con
+la misma licencia y publicando el código fuente. Se distribuye **sin ninguna
+garantía**.
+
+Se eligió GPL porque Tamalio usa directamente `mutagen` (GPL-2.0-or-later); el
+resto de dependencias (yt-dlp: Unlicense · curl_cffi: MIT · requests:
+Apache-2.0 · psycopg: LGPL-3.0) son compatibles con ella.
+
+> **Aviso de uso.** La licencia cubre el código de Tamalio, no el contenido que
+> descargas. Respeta los términos de servicio de cada plataforma y los derechos
+> de los artistas; Tamalio está pensado para uso **personal y no comercial**.
+
+---
+
+Hecho con 🌽 por **Quetzal Nocturno** · GPL-3.0-or-later.
