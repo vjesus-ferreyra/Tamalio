@@ -63,6 +63,15 @@ def test_conversion_y_etiquetado(generar_audio, imagen_jpeg, tmp_path, formato, 
     texto = str(audio.tags)
     for esperado in ("Beyond Eternity", "Symphony of the Shepherdess", "GHOST DATA", "Skye Light", "2022"):
         assert esperado in texto
+    # Varios artistas: un solo texto separado por comas, nunca «/».
+    esperado = "GHOST DATA, Skye Light"
+    if extension in {"flac", "opus", "ogg"}:
+        assert audio["artist"] == [esperado] and audio["albumartist"] == ["GHOST DATA"]
+        assert audio["artists"] == ["GHOST DATA", "Skye Light"]
+    elif extension == "m4a":
+        assert audio["\xa9ART"] == [esperado]
+    else:
+        assert str(audio.tags["TPE1"]) == esperado and "/" not in str(audio.tags["TPE1"])
     # Carátula incrustada en todos los formatos.
     if extension == "flac":
         assert audio.pictures[0].data == imagen_jpeg

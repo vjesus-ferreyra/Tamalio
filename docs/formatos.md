@@ -138,13 +138,18 @@ Lo genera `tamalio catalogo exportar mi-catalogo.jsonc` y lo lee
 |------|----------------------|---------------------|----------------|
 | Nombre de la canción | `TITLE` | `TIT2` | `©nam` |
 | Álbum | `ALBUM` | `TALB` | `©alb` |
-| Artista(s) de la canción | `ARTIST` (multivalor), `ARTISTS` | `TPE1` (multivalor) | `©ART` |
-| Artista(s) del álbum | `ALBUMARTIST` (multivalor) | `TPE2` | `aART` |
+| Artista(s) de la canción | `ARTIST` («A, B, C») y `ARTISTS` (lista) | `TPE1` («A, B, C») | `©ART` («A, B, C») |
+| Artista(s) del álbum | `ALBUMARTIST` («A, B») | `TPE2` («A, B») | `aART` («A, B») |
 | Número de pista / total | `TRACKNUMBER`, `TRACKTOTAL`, `TOTALTRACKS` | `TRCK` («n/total») | `trkn` |
 | Género(s) | `GENRE` (multivalor) | `TCON` | `©gen` |
 | Año | `DATE` | `TDRC` | `©day` |
 | Carátula | `PICTURE` (FLAC) / `METADATA_BLOCK_PICTURE` (Ogg) | `APIC` (portada frontal) | `covr` |
 | Origen | `TAMALIO_PLATAFORMA`, `TAMALIO_ID`, `TAMALIO_URL` | `TXXX:TAMALIO_*` | `----:com.apple.iTunes:TAMALIO_*` |
+
+Varios artistas se escriben en un solo texto separado por **comas**
+(«GHOST DATA, Skye Light»). Si se guardaran como valores múltiples, muchos
+reproductores los mostrarían unidos con «/». En FLAC/Opus/Vorbis la etiqueta
+`ARTISTS` conserva además la lista por separado.
 
 ## 5. Reglas de extracción por plataforma
 

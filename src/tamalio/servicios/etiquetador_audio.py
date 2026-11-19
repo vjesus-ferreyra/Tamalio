@@ -24,8 +24,10 @@ class EtiquetadorAudio:
 
     Metadatos escritos en todos los formatos:
 
-    - Nombre de la canción, álbum, artistas de la pista y del álbum
-      (como **valores múltiples** cuando el formato lo permite).
+    - Nombre de la canción, álbum, artistas de la pista y del álbum.
+      Varios artistas se escriben en **un solo texto separado por comas**
+      («GHOST DATA, Skye Light»): si se guardaran como valores múltiples, muchos
+      reproductores los mostrarían unidos con «/» («GHOST DATA/Skye Light»).
     - Número de pista / total, géneros y año.
     - Carátula frontal en alta resolución.
     - Origen (plataforma, ID y URL) para poder reconstruir el catálogo.
@@ -33,6 +35,14 @@ class EtiquetadorAudio:
     Cada familia de formatos guarda las etiquetas de forma distinta:
     *Vorbis comments* (FLAC/Ogg), *ID3v2.4* (MP3/WAV) y átomos *iTunes* (MP4).
     """
+
+    #: Separador entre varios artistas dentro de una misma etiqueta.
+    SEPARADOR_ARTISTAS = ", "
+
+    @classmethod
+    def unir_artistas(cls, artistas: list[str]) -> str:
+        """``["GHOST DATA", "Skye Light"]`` → ``"GHOST DATA, Skye Light"``."""
+        return cls.SEPARADOR_ARTISTAS.join(artistas)
 
     def etiquetar(self, ruta: Path, pista: Pista, imagen: bytes | None) -> None:
         """
@@ -82,9 +92,12 @@ class EtiquetadorAudio:
         etiquetas: dict[str, list[str]] = {
             "TITLE": [pista.titulo],
             "ALBUM": [pista.album],
-            "ARTIST": list(pista.artistas),
+            # ARTIST/ALBUMARTIST: texto único separado por comas (lo que muestran los reproductores).
+            "ARTIST": [EtiquetadorAudio.unir_artistas(pista.artistas)] if pista.artistas else [],
+            # ARTISTS conserva la lista por separado (convención de MusicBrainz Picard) para
+            # los reproductores que saben agrupar por cada artista.
             "ARTISTS": list(pista.artistas),
-            "ALBUMARTIST": list(pista.artistas_album),
+            "ALBUMARTIST": [EtiquetadorAudio.unir_artistas(pista.artistas_album)] if pista.artistas_album else [],
             "GENRE": list(pista.generos),
             "COMMENT": [f"Extraído con Tamalio desde {pista.url}"],
             "TAMALIO_PLATAFORMA": [pista.plataforma.value],
@@ -145,9 +158,10 @@ class EtiquetadorAudio:
         etiquetas.delall("APIC")
         etiquetas.add(TIT2(encoding=3, text=pista.titulo))
         etiquetas.add(TALB(encoding=3, text=pista.album))
-        etiquetas.add(TPE1(encoding=3, text=list(pista.artistas)))
+        # Un solo texto con comas: ID3 mostraría los valores múltiples unidos con «/».
+        etiquetas.add(TPE1(encoding=3, text=EtiquetadorAudio.unir_artistas(pista.artistas)))
         if pista.artistas_album:
-            etiquetas.add(TPE2(encoding=3, text=list(pista.artistas_album)))
+            etiquetas.add(TPE2(encoding=3, text=EtiquetadorAudio.unir_artistas(pista.artistas_album)))
         if pista.numero_pista:
             numero = f"{pista.numero_pista}/{pista.total_pistas}" if pista.total_pistas else str(pista.numero_pista)
             etiquetas.add(TRCK(encoding=3, text=numero))
@@ -198,9 +212,9 @@ class EtiquetadorAudio:
         audio.tags.clear()
         audio["\xa9nam"] = [pista.titulo]
         audio["\xa9alb"] = [pista.album]
-        audio["\xa9ART"] = list(pista.artistas)
+        audio["\xa9ART"] = [self.unir_artistas(pista.artistas)]
         if pista.artistas_album:
-            audio["aART"] = list(pista.artistas_album)
+            audio["aART"] = [self.unir_artistas(pista.artistas_album)]
         if pista.numero_pista:
             audio["trkn"] = [(pista.numero_pista, pista.total_pistas or 0)]
         if pista.generos:
