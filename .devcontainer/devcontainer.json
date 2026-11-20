@@ -1,0 +1,83 @@
+// Contenedor de desarrollo de Tamalio para GitHub Codespaces, Zed y VS Code.
+//
+//   - Zed en tu equipo: abre el proyecto y elige «Open in Container».
+//   - Zed con Codespaces: se conecta por SSH (servidor sshd incluido).
+//   - VS Code: Codespaces en el navegador o Dev Containers en local.
+//
+// Levanta dos servicios definidos en compose.yaml:
+//   - app: Ubuntu 24.04 con uv, FFmpeg y QuickJS. Python 3.15 lo instala uv.
+//   - db:  PostgreSQL 18 con las bases «tamalio» y «tamalio_pruebas».
+//
+// Referencia: https://containers.dev/implementors/json_reference/
+{
+  "name": "Tamalio",
+  "dockerComposeFile": "compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "shutdownAction": "stopCompose",
+  "remoteUser": "vscode",
+
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Servidor SSH: lo necesita «gh codespace ssh» para que Zed se conecte
+    // a un codespace como a cualquier servidor remoto.
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  },
+
+  // El entorno virtual que crea uv queda primero en el PATH, así que
+  // «tamalio», «ruff» y «pytest» funcionan sin anteponer «uv run».
+  // Esto lo aplican VS Code y Zed en contenedor; para las sesiones SSH lo
+  // hace /etc/profile.d/tamalio.sh (ver post-create.sh).
+  "remoteEnv": {
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "codespaces": {
+      "openFiles": [".devcontainer/README.md"]
+    },
+
+    // Zed ya trae Python, Ruff y basedpyright. Toma el formateo y la revisión
+    // de tipos de .zed/settings.json del proyecto; aquí solo se añaden
+    // extensiones para los demás ficheros del repositorio.
+    "zed": {
+      "extensions": ["toml", "sql", "dockerfile", "docker-compose", "mermaid"]
+    },
+
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml",
+        "bierner.markdown-mermaid"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": false,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        // Mismo nivel de revisión de tipos que usa Zed.
+        "python.analysis.typeCheckingMode": "standard",
+
+        // Ruff es la única herramienta de calidad: se usa la versión
+        // instalada en el proyecto, no la que trae la extensión.
+        "ruff.importStrategy": "fromEnvironment",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+
+        "files.insertFinalNewline": true,
+        "files.trimTrailingWhitespace": true,
+        "files.associations": {
+          "*.jsonc": "jsonc"
+        }
+      }
+    }
+  }
+}

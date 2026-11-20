@@ -1,0 +1,39 @@
+# Servicios del contenedor de desarrollo de Tamalio. Los usan por igual
+# GitHub Codespaces, VS Code y Zed.
+#
+# «app» comparte la red de «db» (network_mode: service:db), así que
+# PostgreSQL responde en localhost:5432, igual que en una instalación local.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../..:/workspaces:cached
+    # Mantiene vivo el contenedor; VS Code se conecta a él.
+    command: sleep infinity
+    network_mode: service:db
+    # PostgreSQL, uv, idioma y zona horaria.
+    env_file: entorno.env
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tamalio
+      POSTGRES_PASSWORD: tamalio
+      POSTGRES_DB: tamalio
+      TZ: America/Mexico_City
+    volumes:
+      # Desde PostgreSQL 18 el volumen se monta en /var/lib/postgresql.
+      - datos-postgres:/var/lib/postgresql
+      - ./postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tamalio -d tamalio"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  datos-postgres:
