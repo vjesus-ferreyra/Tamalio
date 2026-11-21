@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
 from tamalio.configuracion.configuracion import Configuracion
 from tamalio.modelos.resultado_verificacion import ResultadoVerificacion
@@ -24,8 +25,9 @@ class VerificadorDependencias:
 
     Comprobaciones: versión de Python, FFmpeg/ffprobe, QuickJS, ``yt-dlp`` y
     ``yt-dlp-ejs``, ``curl_cffi`` (suplantación de navegador), ``mutagen``,
-    ``requests``, ``psycopg`` + conexión a PostgreSQL y permisos de escritura
-    en la carpeta de destino.
+    ``requests``, ``psycopg`` + conexión a PostgreSQL, Playwright y su
+    navegador (carátulas de Bandcamp) y permisos de escritura en la carpeta de
+    destino.
 
     Args:
         config: Configuración vigente.
@@ -49,6 +51,7 @@ class VerificadorDependencias:
             lambda: self._paquete("mutagen", "mutagen", "uv sync"),
             lambda: self._paquete("requests", "requests", "uv sync"),
             lambda: self._paquete("psycopg", "psycopg", "uv sync"),
+            self._playwright,
             self._postgres,
             self._destino,
         ]
@@ -100,6 +103,22 @@ class VerificadorDependencias:
         except importlib.metadata.PackageNotFoundError:
             version = "instalado"
         return ResultadoVerificacion(distribucion, True, version)
+
+    def _playwright(self) -> ResultadoVerificacion:
+        """Playwright y un navegador: solo se usan si las pistas de un álbum de Bandcamp tienen carátulas distintas."""
+        nombre = "Playwright (Bandcamp)"
+        if importlib.util.find_spec("playwright") is None:
+            return ResultadoVerificacion(nombre, False, "no instalado", "uv add playwright")
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            chromium = playwright.chromium.executable_path
+        if Path(chromium).exists():
+            return ResultadoVerificacion(nombre, True, importlib.metadata.version("playwright"))
+        # El lector usa Google Chrome del sistema si falta el Chromium de Playwright.
+        if any(shutil.which(nombre_chrome) for nombre_chrome in ("google-chrome", "google-chrome-stable", "chrome")):
+            return ResultadoVerificacion(nombre, True, "usa Google Chrome del sistema")
+        return ResultadoVerificacion(nombre, False, "sin navegador", "uv run playwright install chromium")
 
     def _curl_cffi(self) -> ResultadoVerificacion:
         """Verifica que ``yt-dlp`` pueda suplantar el navegador configurado."""

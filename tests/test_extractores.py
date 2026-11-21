@@ -15,6 +15,7 @@ from tamalio.extractores.fabrica_extractores import FabricaExtractores
 from tamalio.modelos.caratula import Caratula
 from tamalio.modelos.pista import Pista
 from tamalio.modelos.plataforma import Plataforma
+from tests.dobles.lector_caratula_fijo import LectorCaratulaFijo
 
 FABRICA = FabricaExtractores()
 
@@ -210,3 +211,122 @@ def test_bandcamp_respeta_artista_del_album_con_ampersand(detector):
     }
     (pista,) = FABRICA.obtener(Plataforma.BANDCAMP).normalizar(info, detector.detectar(info["webpage_url"]))
     assert pista.artistas == ["Simon & Garfunkel"]
+
+
+# ---------------------------------------------------------------------- #
+# Bandcamp: número de pista pegado al título
+# ---------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("track", "numero", "esperado"),
+    [
+        ("01 - Opening Credits", 1, "Opening Credits"),
+        ("06 -X-CaliBR8", 6, "X-CaliBR8"),
+        ("6-X-CaliBR8", 6, "X-CaliBR8"),
+        ("12 – Final", 12, "Final"),  # En-dash.
+        ("3. Interlude", 3, "Interlude"),
+        ("02 - Sin número declarado", None, "Sin número declarado"),  # Ceros a la izquierda.
+        # Se respetan los títulos que empiezan con un número de verdad:
+        ("100 - Gecs", 3, "100 - Gecs"),
+        ("2 - Sin número declarado", None, "2 - Sin número declarado"),
+        ("3.14 - Pi", 3, "3.14 - Pi"),
+        ("1979", 1, "1979"),
+        ("99 Luftballons", 99, "99 Luftballons"),
+        ("07 - ", 7, "07 -"),  # Sin título detrás no se quita nada.
+    ],
+)
+def test_bandcamp_quita_el_numero_de_pista_del_titulo(detector, track, numero, esperado):
+    info = {
+        "id": "1",
+        "track": track,
+        "artists": ["Artista"],
+        "track_number": numero,
+        "webpage_url": "https://x.bandcamp.com/track/cancion",
+    }
+    (pista,) = FABRICA.obtener(Plataforma.BANDCAMP).normalizar(info, detector.detectar(info["webpage_url"]))
+    assert pista.titulo == esperado
+
+
+def test_bandcamp_quita_el_numero_antes_de_separar_al_artista(detector):
+    info = {
+        "id": "1",
+        "track": "04 - GHOST DATA - Queen of Knives",
+        "artists": ["GHOST DATA"],
+        "track_number": 4,
+        "webpage_url": "https://ghostdata.bandcamp.com/track/queen-of-knives",
+    }
+    (pista,) = FABRICA.obtener(Plataforma.BANDCAMP).normalizar(info, detector.detectar(info["webpage_url"]))
+    assert pista.titulo == "Queen of Knives"
+    assert pista.artistas == ["GHOST DATA"]
+
+
+# ---------------------------------------------------------------------- #
+# Bandcamp: una sola carátula por álbum
+# ---------------------------------------------------------------------- #
+URL_ALBUM = "https://x.bandcamp.com/album/reunidos"
+
+
+def album_con_caratulas(*imagenes: str) -> dict:
+    """Álbum de Bandcamp cuyas pistas traen las miniaturas indicadas («a111_5.jpg»…)."""
+    return {
+        "_type": "playlist",
+        "id": "reunidos",
+        "title": "Reunidos",
+        "extractor_key": "BandcampAlbum",
+        "webpage_url": URL_ALBUM,
+        "entries": [
+            {
+                "id": str(numero),
+                "track": f"{numero:02d} - Pista {numero}",
+                "artists": ["Artista"],
+                "track_number": numero,
+                "thumbnail": f"https://f4.bcbits.com/img/{imagen}" if imagen else None,
+                "webpage_url": f"https://x.bandcamp.com/track/pista-{numero}",
+            }
+            for numero, imagen in enumerate(imagenes, start=1)
+        ],
+    }
+
+
+def caratulas_del_album(detector, info: dict, lector=None) -> set[str]:
+    extractor = FabricaExtractores(lector_caratulas_bandcamp=lector).obtener(Plataforma.BANDCAMP)
+    pistas = extractor.normalizar(info, detector.detectar(URL_ALBUM))
+    assert [p.titulo for p in pistas] == [f"Pista {n}" for n in range(1, len(pistas) + 1)]
+    return {caratula(p).url for p in pistas}
+
+
+def test_album_bandcamp_usa_la_caratula_que_mas_se_repite(detector):
+    # La misma imagen en otro tamaño (_10) cuenta como la misma.
+    info = album_con_caratulas("a111_5.jpg", "a222_5.jpg", "a111_10.jpg", "a333_5.jpg", "a111_5.jpg")
+    lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a111_0.jpg"}
+    assert lector.consultadas == []  # No hizo falta abrir la página.
+
+
+def test_album_bandcamp_con_caratulas_todas_distintas_usa_la_de_la_pagina(detector):
+    info = album_con_caratulas("a111_5.jpg", "a222_5.jpg", "a333_5.jpg")
+    lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a999_0.jpg"}
+    assert lector.consultadas == [URL_ALBUM]  # Una sola consulta para todo el álbum.
+
+
+def test_album_bandcamp_con_empate_usa_la_de_la_pagina(detector):
+    info = album_con_caratulas("a111_5.jpg", "a222_5.jpg", "a111_5.jpg", "a222_5.jpg")
+    lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a999_0.jpg"}
+
+
+def test_album_bandcamp_sin_caratulas_en_el_json_usa_la_de_la_pagina(detector):
+    info = album_con_caratulas("", "")
+    lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a999_0.jpg"}
+
+
+@pytest.mark.parametrize("lector", [None, LectorCaratulaFijo(None)], ids=["sin-lector", "pagina-falla"])
+def test_album_bandcamp_sin_caratula_mayoritaria_ni_pagina_usa_la_primera(detector, lector):
+    info = album_con_caratulas("a111_5.jpg", "a222_5.jpg", "a333_5.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a111_0.jpg"}
+
+
+def test_album_bandcamp_real_conserva_su_unica_caratula(cargar_fixture, detector):
+    pistas = normalizar(cargar_fixture, detector, "album_bandcamp", Plataforma.BANDCAMP)
+    assert {caratula(p).url for p in pistas} == {"https://f4.bcbits.com/img/a3054183310_0.jpg"}

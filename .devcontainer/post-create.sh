@@ -8,6 +8,14 @@ cd "$proyecto"
 echo "» Instalando Python y las dependencias con uv…"
 uv sync
 
+if uv run python -c "import playwright" 2> /dev/null; then
+    echo "» Instalando Chromium para Playwright (carátulas de álbumes de Bandcamp)…"
+    uv run playwright install chromium
+    sudo "$proyecto/.venv/bin/playwright" install-deps chromium
+else
+    echo "» Playwright no está entre las dependencias («uv add playwright»); se omite Chromium."
+fi
+
 echo "» Esperando a PostgreSQL…"
 pg_isready --timeout=60
 
