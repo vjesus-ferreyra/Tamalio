@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/QuetzalNocturno/tamalio/main/src/tamalio/recursos/esquemas/fuentes.schema.json",
+  "$id": "https://raw.githubusercontent.com/vjesus-ferreyra/Tamalio/main/src/tamalio/recursos/esquemas/fuentes.schema.json",
   "title": "Tamalio · Fichero de fuentes",
   "description": "Lista de enlaces (fuentes) para descargar en masa con «tamalio descargar -a FICHERO». Se escribe en JSONC: JSON que admite comentarios // y /* */ y comas finales.",
   "type": "object",

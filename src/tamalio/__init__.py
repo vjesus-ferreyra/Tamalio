@@ -30,7 +30,7 @@ ALIAS_AUTOR = "Quetzal Nocturno"
 
 #: Repositorio en GitHub (``usuario/proyecto``). Se usa para construir las URL
 #: públicas de los esquemas JSON (``$schema``). Cámbialo si tu usuario es otro.
-REPOSITORIO = "QuetzalNocturno/tamalio"
+REPOSITORIO = "vjesus-ferreyra/tamalio"
 
 #: URL base donde GitHub sirve los esquemas en crudo desde la rama principal.
 URL_ESQUEMAS = f"https://raw.githubusercontent.com/{REPOSITORIO}/main/src/tamalio/recursos/esquemas"

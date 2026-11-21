@@ -47,6 +47,6 @@
     },
 
     /* Una fuente se puede desactivar sin borrarla: */
-    { "url": "https://ghostdata.bandcamp.com/album/otro-album", "omitir": true },
-  ],
+    { "url": "https://ghostdata.bandcamp.com/album/otro-album", "omitir": true }
+  ]
 }

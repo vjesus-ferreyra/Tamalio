@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/QuetzalNocturno/tamalio/main/src/tamalio/recursos/esquemas/catalogo.schema.json",
+  "$id": "https://raw.githubusercontent.com/vjesus-ferreyra/Tamalio/main/src/tamalio/recursos/esquemas/catalogo.schema.json",
   "title": "Tamalio · Catálogo exportable",
   "description": "Catálogo musical personal para exportar («tamalio catalogo exportar») e importar («tamalio catalogo importar») entre equipos. No contiene audio: solo metadatos, enlace de origen y ruta relativa de cada pista.",
   "type": "object",

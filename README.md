@@ -174,7 +174,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ### 2. Obtener el código e instalar dependencias
 
 ```bash
-git clone https://github.com/QuetzalNocturno/tamalio.git
+git clone https://github.com/vjesus-ferreyra/Tamalio.git
 cd tamalio
 uv sync            # Crea .venv con Python 3.15 e instala todo (incluye pytest y ruff)
 ```
