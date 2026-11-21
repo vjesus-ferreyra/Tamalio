@@ -37,9 +37,9 @@ class ExtractorBandcamp(ExtractorBase):
     - La miniatura ``…_5.jpg`` mide 700 px; cambiando el sufijo a ``_0`` se
       obtiene la imagen **original** a máxima resolución (``_10`` = 1200 px).
     - Las pistas de un mismo álbum pueden traer carátulas distintas (álbumes que
-      reúnen sencillos). Todas reciben una sola: la que más se repite, o la que
-      muestra la página del álbum si no hay una que se repita más que las demás
-      (ver :meth:`_caratula_coleccion`).
+      reúnen sencillos). Todas reciben una sola: la que más se repite (en un
+      empate, la primera de las empatadas), o la que muestra la página del
+      álbum si todas son distintas (ver :meth:`_caratula_coleccion`).
 
     Args:
         agregar_invitados: Ver :class:`ExtractorBase`.
@@ -138,8 +138,10 @@ class ExtractorBandcamp(ExtractorBase):
         2. La que más se repite entre las pistas. Se compara el identificador de
            la imagen (``a3054183310``) y no la URL completa, porque la misma
            imagen puede llegar con otro tamaño (``_5``, ``_10``) o servidor.
-        3. Si ninguna se repite más que las demás (todas distintas o empate), la
-           que muestra la página del álbum, leída con ``lector_caratulas``.
+           Si hay empate entre las que más se repiten, se usa la primera de las
+           empatadas en el orden de las pistas; no se consulta la página.
+        3. Si todas son distintas (ninguna se repite), la que muestra la página
+           del álbum, leída con ``lector_caratulas``.
         4. Si eso falla, la de la primera pista.
         """
         propia = self._caratula(info)
@@ -155,11 +157,11 @@ class ExtractorBandcamp(ExtractorBase):
                 conteo[clave] += 1
                 representantes.setdefault(clave, caratula)
 
-        if len(conteo) == 1:
-            return next(iter(representantes.values()))
         if conteo:
-            (clave, veces), (_, siguiente) = conteo.most_common(2)
-            if veces > siguiente:
+            # most_common() respeta el orden de inserción entre iguales: en un
+            # empate devuelve la empatada que aparece primero en el álbum.
+            ((clave, veces),) = conteo.most_common(1)
+            if veces > 1 or len(conteo) == 1:
                 return representantes[clave]
 
         de_pagina = self._caratula_de_pagina(info, len(conteo))
@@ -174,7 +176,7 @@ class ExtractorBandcamp(ExtractorBase):
         if self._lector_caratulas is None or not url_album:
             return None
         registro.info(
-            "Las pistas de «%s» traen %d carátulas sin una mayoritaria; se lee la del álbum en su página.",
+            "Las pistas de «%s» traen %d carátulas distintas; se lee la del álbum en su página.",
             info.get("title") or url_album,
             distintas,
         )

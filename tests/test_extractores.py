@@ -309,10 +309,26 @@ def test_album_bandcamp_con_caratulas_todas_distintas_usa_la_de_la_pagina(detect
     assert lector.consultadas == [URL_ALBUM]  # Una sola consulta para todo el álbum.
 
 
-def test_album_bandcamp_con_empate_usa_la_de_la_pagina(detector):
-    info = album_con_caratulas("a111_5.jpg", "a222_5.jpg", "a111_5.jpg", "a222_5.jpg")
+@pytest.mark.parametrize(
+    ("imagenes", "ganadora"),
+    [
+        (("a111_5.jpg", "a222_5.jpg", "a111_5.jpg", "a222_5.jpg"), "a111"),  # 2 contra 2.
+        (("a222_5.jpg", "a111_5.jpg", "a111_5.jpg", "a222_5.jpg"), "a222"),  # Gana la que aparece primero.
+        (("a333_5.jpg", "a111_5.jpg", "a222_5.jpg", "a222_5.jpg", "a111_5.jpg"), "a111"),  # La a333 no empata.
+    ],
+)
+def test_album_bandcamp_con_empate_usa_la_primera_empatada(detector, imagenes, ganadora):
+    info = album_con_caratulas(*imagenes)
     lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
-    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a999_0.jpg"}
+    assert caratulas_del_album(detector, info, lector) == {f"https://f4.bcbits.com/img/{ganadora}_0.jpg"}
+    assert lector.consultadas == []  # Un empate no abre la página del álbum.
+
+
+def test_album_bandcamp_de_una_sola_pista_no_abre_la_pagina(detector):
+    info = album_con_caratulas("a111_5.jpg")
+    lector = LectorCaratulaFijo("https://f4.bcbits.com/img/a999_10.jpg")
+    assert caratulas_del_album(detector, info, lector) == {"https://f4.bcbits.com/img/a111_0.jpg"}
+    assert lector.consultadas == []
 
 
 def test_album_bandcamp_sin_caratulas_en_el_json_usa_la_de_la_pagina(detector):

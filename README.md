@@ -59,8 +59,9 @@ descargas cuando quieras, incluso desde otra terminal.
   años absurdos, separa géneros de ubicaciones en Bandcamp, quita el número
   de pista pegado al título («01 - Opening Credits» → «Opening Credits»), etc.
 - 🖼️ **Una sola carátula por álbum**: si las pistas de un álbum de Bandcamp
-  traen imágenes distintas, se usa la que más se repite; si todas son
-  distintas, se lee la carátula de la página del álbum con Playwright.
+  traen imágenes distintas, se usa la que más se repite (en un empate, la
+  primera de las empatadas); si todas son distintas, se lee la carátula de la
+  página del álbum con Playwright.
 - 📂 **Biblioteca ordenada**: `~/Música/<usuario>/<Plataforma>/<Artista>/<Álbum (Año)>/01 - Canción.ext`.
 - 📋 **Descarga en masa** desde ficheros **JSONC** (con `$schema` y comentarios)
   o **texto plano**.
