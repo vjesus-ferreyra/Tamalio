@@ -37,9 +37,9 @@ class ExtractorBandcamp(ExtractorBase):
     - La miniatura ``…_5.jpg`` mide 700 px; cambiando el sufijo a ``_0`` se
       obtiene la imagen **original** a máxima resolución (``_10`` = 1200 px).
     - Las pistas de un mismo álbum pueden traer carátulas distintas (álbumes que
-      reúnen sencillos). Todas reciben una sola: la que más se repite (en un
-      empate, la primera de las empatadas), o la que muestra la página del
-      álbum si todas son distintas (ver :meth:`_caratula_coleccion`).
+      reúnen sencillos). Todas reciben una sola: la que más se repite; en un
+      empate, la de enlace más repetido entre las empatadas; y si eso tampoco
+      decide, la que muestra la página del álbum (ver :meth:`_caratula_coleccion`).
 
     Args:
         agregar_invitados: Ver :class:`ExtractorBase`.
@@ -119,9 +119,7 @@ class ExtractorBandcamp(ExtractorBase):
 
     def _caratula(self, entrada: dict[str, Any]) -> Caratula | None:
         """Imagen original (``_0``) con 1200 px (``_10``) y la recibida como respaldo."""
-        url = entrada.get("thumbnail") or next(
-            (m["url"] for m in (entrada.get("thumbnails") or []) if m.get("url")), None
-        )
+        url = self._enlace_miniatura(entrada)
         if not url:
             return None
         if not self._PATRON_TAMANO.search(url):
@@ -138,50 +136,81 @@ class ExtractorBandcamp(ExtractorBase):
         2. La que más se repite entre las pistas. Se compara el identificador de
            la imagen (``a3054183310``) y no la URL completa, porque la misma
            imagen puede llegar con otro tamaño (``_5``, ``_10``) o servidor.
-           Si hay empate entre las que más se repiten, se usa la primera de las
-           empatadas en el orden de las pistas; no se consulta la página.
-        3. Si todas son distintas (ninguna se repite), la que muestra la página
-           del álbum, leída con ``lector_caratulas``.
-        4. Si eso falla, la de la primera pista.
+        3. Si hay empate entre las que más se repiten, se cuentan los enlaces
+           **exactos** de las empatadas: si uno se repite más que los demás, se
+           usa ese.
+        4. Si todas son distintas, o el empate sigue también entre los enlaces,
+           la que muestra la página del álbum, leída con ``lector_caratulas``.
+        5. Si eso falla, la de la primera pista.
         """
         propia = self._caratula(info)
         if propia:
             return propia
 
-        conteo: Counter[str] = Counter()
+        # (identificador de la imagen, enlace exacto) de cada pista, en orden.
+        imagenes: list[tuple[str, str]] = []
         representantes: dict[str, Caratula] = {}
         for entrada in entradas:
             caratula = self._caratula(entrada)
-            if caratula is not None:
+            enlace = self._enlace_miniatura(entrada)
+            if caratula is not None and enlace:
                 clave = self._clave_imagen(caratula.url)
-                conteo[clave] += 1
+                imagenes.append((clave, enlace))
                 representantes.setdefault(clave, caratula)
 
+        conteo = Counter(clave for clave, _ in imagenes)
+        if len(conteo) == 1:
+            return next(iter(representantes.values()))
         if conteo:
-            # most_common() respeta el orden de inserción entre iguales: en un
-            # empate devuelve la empatada que aparece primero en el álbum.
-            ((clave, veces),) = conteo.most_common(1)
-            if veces > 1 or len(conteo) == 1:
-                return representantes[clave]
+            maximo = max(conteo.values())
+            empatadas = {clave for clave, veces in conteo.items() if veces == maximo}
+            if maximo > 1 and len(empatadas) == 1:
+                return representantes[empatadas.pop()]
+            if maximo > 1:
+                elegida = self._desempatar_por_enlace(imagenes, empatadas)
+                if elegida is not None:
+                    return elegida
 
-        de_pagina = self._caratula_de_pagina(info, len(conteo))
+        motivo = "carátulas empatadas sin un enlace que se repita más" if conteo else "ninguna carátula"
+        de_pagina = self._caratula_de_pagina(info, motivo)
         if de_pagina is not None:
             return de_pagina
         # Las claves conservan el orden de las pistas: la primera es la de la pista 1.
         return next(iter(representantes.values()), None)
 
-    def _caratula_de_pagina(self, info: dict[str, Any], distintas: int) -> Caratula | None:
+    def _desempatar_por_enlace(self, imagenes: list[tuple[str, str]], empatadas: set[str]) -> Caratula | None:
+        """
+        Entre las imágenes empatadas, la de enlace exacto más repetido.
+
+        Devuelve ``None`` si los enlaces también empatan (por ejemplo, cada
+        empatada llega con un tamaño distinto en cada pista).
+        """
+        enlaces = Counter(enlace for clave, enlace in imagenes if clave in empatadas)
+        (enlace, veces), (_, siguiente) = enlaces.most_common(2)
+        if veces > siguiente:
+            registro.debug("Carátulas empatadas; se elige el enlace que más se repite: %s", enlace)
+            return self._caratula({"thumbnail": enlace})
+        return None
+
+    def _caratula_de_pagina(self, info: dict[str, Any], motivo: str) -> Caratula | None:
         """Carátula que muestra la página del álbum (último recurso de :meth:`_caratula_coleccion`)."""
         url_album = info.get("webpage_url") or info.get("original_url")
         if self._lector_caratulas is None or not url_album:
             return None
         registro.info(
-            "Las pistas de «%s» traen %d carátulas distintas; se lee la del álbum en su página.",
+            "Las pistas de «%s» no deciden la carátula del álbum (%s); se lee la de su página.",
             info.get("title") or url_album,
-            distintas,
+            motivo,
         )
         url = self._lector_caratulas.url_caratula(str(url_album))
         return self._caratula({"thumbnail": url}) if url else None
+
+    @staticmethod
+    def _enlace_miniatura(entrada: dict[str, Any]) -> str | None:
+        """Enlace de la miniatura tal como llega en el JSON de ``yt-dlp``."""
+        return entrada.get("thumbnail") or next(
+            (m["url"] for m in (entrada.get("thumbnails") or []) if m.get("url")), None
+        )
 
     @classmethod
     def _clave_imagen(cls, url: str) -> str:

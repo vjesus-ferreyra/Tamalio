@@ -177,8 +177,9 @@ Reglas que **no** se rompen:
   para no estropear títulos como «100 - Gecs».
 - **Carátula de álbumes de Bandcamp:** todas las pistas reciben la misma, la
   que más se repite (se compara el identificador `a123…` de la imagen, no la
-  URL); en un empate, la primera de las empatadas. Solo si todas son
-  distintas, `LectorCaratulaBandcamp` (Playwright) la lee de
+  URL); en un empate, la de enlace exacto más repetido entre las empatadas.
+  Si todas son distintas o los enlaces también empatan,
+  `LectorCaratulaBandcamp` (Playwright) la lee de
   `#tralbumArt` en la página del álbum. Ese lector nunca lanza excepciones y en
   las pruebas se sustituye por `tests/dobles/lector_caratula_fijo.py`.
 - **yt-dlp y tipos:** sus `TypedDict` (`_Params`, `_InfoDict`) son parciales;
