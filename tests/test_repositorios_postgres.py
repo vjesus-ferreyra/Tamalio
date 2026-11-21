@@ -8,7 +8,7 @@ Pruebas de integración con PostgreSQL.
 Se ejecutan solo si existe la variable ``TAMALIO_BD_PRUEBAS`` con la cadena de
 conexión a una base **desechable** (las tablas se vacían)::
 
-    TAMALIO_BD_PRUEBAS=postgresql://tamalio:tamalio@localhost:5432/tamalio_pruebas uv run pytest
+    TAMALIO_BD_PRUEBAS=postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio_pruebas uv run pytest
 """
 
 import io
@@ -70,6 +70,24 @@ def test_catalogo_upsert_y_busqueda(conexion, tmp_path):
     assert leida.titulo == "Lights (remaster)" and leida.artistas == ["Klaypex"] and leida.duracion == 248.322
     assert repositorio.listar(texto="klaypex")[0].id_externo == "20732176"
     assert repositorio.buscar_por_ruta(tmp_path / "Lights.m4a") is not None
+
+
+def test_busqueda_trata_comodines_como_texto(conexion):
+    repositorio = RepositorioCatalogoPostgres(conexion)
+    titulos = ["100% Pure Love", "1000 Days", "mi_cancion", "mixcancion", "AC\\DC Live"]
+    for numero, titulo in enumerate(titulos, start=1):
+        repositorio.guardar(
+            Pista(Plataforma.BANDCAMP, str(numero), f"https://x.bandcamp.com/track/{numero}", titulo, "A", ["B"], ["B"])
+        )
+
+    def buscar(texto: str) -> list[str]:
+        return sorted(p.titulo for p in repositorio.listar(texto=texto))
+
+    assert buscar("100%") == ["100% Pure Love"]  # «%» no es comodín: no coincide con «1000 Days».
+    assert buscar("mi_c") == ["mi_cancion"]  # «_» no es comodín: no coincide con «mixcancion».
+    assert buscar("%") == ["100% Pure Love"]  # Antes devolvía todo el catálogo.
+    assert buscar("C\\D") == ["AC\\DC Live"]  # La barra invertida también se busca literal.
+    assert len(buscar("")) == len(titulos)  # Sin texto no se filtra.
 
 
 def test_cola_evita_duplicados_activos(conexion, detector):

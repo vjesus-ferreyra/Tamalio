@@ -115,13 +115,15 @@ class RepositorioCatalogoPostgres(RepositorioCatalogo):
             parametros.append(plataforma.value)
         if texto:
             # ILIKE sin distinguir mayúsculas; se busca también dentro de los arreglos de artistas.
+            # El texto se escapa para que «%» y «_» se busquen literalmente y no como comodines.
             condiciones.append(
                 sql.SQL(
-                    "(titulo ILIKE %s OR album ILIKE %s OR array_to_string(artistas, ' ') ILIKE %s "
-                    "OR array_to_string(artistas_album, ' ') ILIKE %s)"
+                    "(titulo ILIKE %s ESCAPE '\\' OR album ILIKE %s ESCAPE '\\' "
+                    "OR array_to_string(artistas, ' ') ILIKE %s ESCAPE '\\' "
+                    "OR array_to_string(artistas_album, ' ') ILIKE %s ESCAPE '\\')"
                 )
             )
-            parametros.extend([f"%{texto}%"] * 4)
+            parametros.extend([self._patron_contiene(texto)] * 4)
         donde = sql.SQL("WHERE {}").format(sql.SQL(" AND ").join(condiciones)) if condiciones else sql.SQL("")
         filas = self._bd.todas(
             sql.SQL(
@@ -131,6 +133,17 @@ class RepositorioCatalogoPostgres(RepositorioCatalogo):
             parametros,
         )
         return [self._a_pista(fila) for fila in filas]
+
+    @staticmethod
+    def _patron_contiene(texto: str) -> str:
+        """
+        Patrón ``LIKE`` que busca ``texto`` en cualquier posición, sin comodines del usuario.
+
+        Se escapa primero la barra invertida (el carácter de escape) y después ``%`` y ``_``;
+        así «100%» o «mi_cancion» coinciden solo con ese texto exacto.
+        """
+        escapado = texto.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return f"%{escapado}%"
 
     @staticmethod
     def _a_pista(fila: dict[str, Any]) -> Pista:

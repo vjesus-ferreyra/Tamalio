@@ -181,20 +181,39 @@ uv sync            # Crea .venv con Python 3.15 e instala todo (incluye pytest y
 
 ### 3. Preparar PostgreSQL
 
-Crea un usuario y una base de datos (ajusta la contraseña a tu gusto):
+Crea un usuario y una base de datos. `createuser -P` te pide la contraseña del
+nuevo usuario sin que quede escrita en el historial de la terminal:
 
 ```bash
 # Linux
-sudo -u postgres psql -c "CREATE USER tamalio WITH PASSWORD 'tamalio';"
+sudo -u postgres createuser -P tamalio
 sudo -u postgres createdb -O tamalio tamalio
 
 # macOS (Homebrew: tu usuario ya es superusuario)
 createuser -P tamalio && createdb -O tamalio tamalio
 
 # Windows (desde la carpeta bin de PostgreSQL)
-psql -U postgres -c "CREATE USER tamalio WITH PASSWORD 'tamalio';"
+createuser -U postgres -P tamalio
 createdb -U postgres -O tamalio tamalio
 ```
+
+> **La contraseña es obligatoria y debe ser tuya.** Tamalio no trae ninguna
+> conexión ni contraseña predeterminada, y rechaza la contraseña `tamalio`, que
+> aparecía como ejemplo en versiones anteriores. Si tu usuario aún la usa,
+> cámbiala en `psql` con `\password tamalio` (o
+> `ALTER ROLE tamalio WITH PASSWORD '…';`).
+
+Indica la conexión en `[base_datos] url` de tu `tamalio.toml` (paso 4) o en la
+variable `TAMALIO_BD_URL`:
+
+```bash
+export TAMALIO_BD_URL='postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio'
+```
+
+Si prefieres que la contraseña no vaya dentro de la cadena, quítala de la URL
+(`postgresql://tamalio@localhost:5432/tamalio`) y defínela en la variable
+estándar `PGPASSWORD`. Si contiene caracteres especiales como `@`, `:` o `/`,
+escríbelos codificados en la URL (`@` → `%40`).
 
 Crea las tablas (el comando es idempotente):
 
@@ -202,10 +221,11 @@ Crea las tablas (el comando es idempotente):
 uv run tamalio bd iniciar
 ```
 
-### 4. Configurar (opcional)
+### 4. Configurar
 
 Copia [`config/tamalio.ejemplo.toml`](config/tamalio.ejemplo.toml) a tu carpeta
-de configuración y ajústalo:
+de configuración y ajústalo. La única opción obligatoria es `[base_datos] url`
+(salvo que uses `TAMALIO_BD_URL`); el resto tiene valores predeterminados:
 
 | Sistema | Ruta |
 |---------|------|
@@ -302,6 +322,7 @@ tamalio cancelar --todas
 ```bash
 tamalio catalogo listar
 tamalio catalogo listar --plataforma bandcamp --buscar "ghost data"
+tamalio catalogo listar --buscar "100%"                    # «%» y «_» se buscan tal cual
 tamalio catalogo exportar ~/mi-catalogo.jsonc
 tamalio catalogo importar ~/mi-catalogo.jsonc              # Vincula lo que ya exista
 tamalio catalogo importar ~/mi-catalogo.jsonc --descargar  # …y descarga lo que falte
@@ -466,7 +487,7 @@ Las pruebas usan las **respuestas reales de yt-dlp** de cada plataforma
 instalado) y, opcionalmente, una base PostgreSQL **desechable**:
 
 ```bash
-TAMALIO_BD_PRUEBAS=postgresql://tamalio:tamalio@localhost:5432/tamalio_pruebas uv run pytest
+TAMALIO_BD_PRUEBAS=postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio_pruebas uv run pytest
 ```
 
 La integración continua (`.github/workflows/ci.yml`) ejecuta Ruff y todas las
@@ -522,6 +543,7 @@ conversión recodifica con pérdida (por ejemplo Opus → MP3).
 | **Registro obligatorio o captcha** | Se pide al usuario la ubicación del fichero de **tokens de sesión** (cookies) de esa plataforma, se valida y se reintenta. |
 | **Retos de JavaScript de YouTube** | Se usa el intérprete **QuickJS** (`js_runtimes = {"quickjs": …}`) en lugar de Deno. |
 | **URLs de descarga caducadas** (tras una pausa larga) | Se vuelve a extraer la pista automáticamente una vez. |
+| **Credenciales de la base de datos** | No hay contraseña predeterminada: Tamalio exige una propia, rechaza la de ejemplo de versiones anteriores y la oculta en `--debug`. |
 | **Cortes de red o cierre inesperado** | Ficheros `.part` reanudables, cola persistente en PostgreSQL y `tamalio reanudar`. |
 | **Legalidad** | Uso **personal y no comercial**. Respeta los términos de cada plataforma y los derechos de los artistas; si te gusta su música, apóyalos comprándola. |
 

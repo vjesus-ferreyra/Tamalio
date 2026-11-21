@@ -4,8 +4,11 @@
 
 """Pruebas de exportación e importación del catálogo entre «equipos»."""
 
+import pytest
+
 from tamalio.modelos.pista import Pista
 from tamalio.modelos.plataforma import Plataforma
+from tamalio.repositorios.repositorio_catalogo_postgres import RepositorioCatalogoPostgres
 from tamalio.servicios.analizador_jsonc import AnalizadorJsonc
 from tamalio.servicios.exportador_catalogo import ExportadorCatalogo
 from tamalio.servicios.importador_catalogo import ImportadorCatalogo
@@ -69,3 +72,17 @@ def test_metadatos_fijos_reproducen_la_pista(tmp_path):
     for campo in ("titulo", "album", "artistas", "artistas_album", "numero_pista", "total_pistas", "anio"):
         assert getattr(nueva, campo) == getattr(original, campo)
     assert not nueva.es_sencillo
+
+
+@pytest.mark.parametrize(
+    ("texto", "patron"),
+    [
+        ("klaypex", "%klaypex%"),
+        ("100%", "%100\\%%"),
+        ("mi_cancion", "%mi\\_cancion%"),
+        ("AC\\DC", "%AC\\\\DC%"),
+        ("%_%", "%\\%\\_\\%%"),
+    ],
+)
+def test_busqueda_del_catalogo_escapa_comodines_like(texto, patron):
+    assert RepositorioCatalogoPostgres._patron_contiene(texto) == patron

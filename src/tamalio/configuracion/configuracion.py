@@ -11,13 +11,20 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
+import psycopg
+from psycopg.conninfo import conninfo_to_dict
+
 from tamalio.configuracion.rutas_sistema import RutasSistema
 from tamalio.excepciones.error_tamalio import ErrorTamalio
 from tamalio.modelos.formato_audio import FormatoAudio
 from tamalio.modelos.plataforma import Plataforma
 
-#: Cadena de conexión predeterminada a PostgreSQL.
-URL_BD_PREDETERMINADA = "postgresql://tamalio:tamalio@localhost:5432/tamalio"
+#: Contraseñas que se publicaron como ejemplo en versiones anteriores. Cualquiera
+#: que haya leído la documentación las conoce, así que ya no se aceptan.
+CONTRASENAS_BD_PROHIBIDAS: frozenset[str] = frozenset({"tamalio"})
+
+#: Ejemplo de cadena de conexión para los mensajes de ayuda (sin contraseña real).
+EJEMPLO_URL_BD = "postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio"
 
 
 @dataclass(slots=True)
@@ -67,7 +74,8 @@ class Configuracion:
     sesiones: dict[Plataforma, Path] = field(default_factory=dict)
 
     # [base_datos] ---------------------------------------------------------
-    bd_url: str = URL_BD_PREDETERMINADA
+    # Sin valor predeterminado: la conexión, con su contraseña, la pone el usuario.
+    bd_url: str | None = None
 
     # Modo depuración (--debug o TAMALIO_DEBUG=1) ---------------------------
     depuracion: bool = False
@@ -86,8 +94,49 @@ class Configuracion:
     def resumen(self) -> dict[str, Any]:
         """Configuración efectiva para el modo depuración (la contraseña de la BD se oculta)."""
         datos = {campo.name: getattr(self, campo.name) for campo in fields(self)}
-        datos["bd_url"] = re.sub(r"(://[^:/@]+:)[^@]+@", r"\1****@", self.bd_url)
+        if self.bd_url:
+            # Se cubren las dos formas de libpq: URL («usuario:clave@») y «password=clave».
+            oculta = re.sub(r"(://[^:/@]+:)[^@]+@", r"\1****@", self.bd_url)
+            datos["bd_url"] = re.sub(r"(\bpassword\s*=\s*)('(?:[^'\\]|\\.)*'|\S+)", r"\1****", oculta)
         return datos
+
+    def url_base_datos(self) -> str:
+        """
+        Devuelve la cadena de conexión a PostgreSQL tras comprobar que tiene una contraseña propia.
+
+        La contraseña puede ir en la propia cadena (``postgresql://usuario:clave@…`` o
+        ``password=clave``) o en la variable estándar ``PGPASSWORD``. Se rechazan las
+        contraseñas publicadas como ejemplo (:data:`CONTRASENAS_BD_PROHIBIDAS`).
+
+        Se comprueba aquí, al abrir la base de datos, y no al cargar la configuración,
+        para que los comandos que no usan PostgreSQL (``doctor``) sigan funcionando.
+
+        Raises:
+            ErrorTamalio: Si falta la cadena o la contraseña, si la cadena no es válida o
+                si la contraseña es una de las prohibidas.
+        """
+        sugerencia = f"Define [base_datos] url en tamalio.toml o la variable TAMALIO_BD_URL, p. ej. «{EJEMPLO_URL_BD}»."
+        if not self.bd_url:
+            raise ErrorTamalio("No hay conexión a PostgreSQL configurada.", sugerencia)
+        try:
+            parametros = conninfo_to_dict(self.bd_url)
+        except psycopg.ProgrammingError as error:
+            raise ErrorTamalio("La cadena de conexión a PostgreSQL no es válida.", sugerencia) from error
+
+        contrasena = parametros.get("password") or os.environ.get("PGPASSWORD")
+        if not contrasena:
+            raise ErrorTamalio(
+                "La conexión a PostgreSQL no tiene contraseña.",
+                f"Agrega tu contraseña a la cadena (p. ej. «{EJEMPLO_URL_BD}») o defínela en PGPASSWORD.",
+            )
+        if str(contrasena) in CONTRASENAS_BD_PROHIBIDAS:
+            usuario = parametros.get("user") or "tamalio"
+            raise ErrorTamalio(
+                "La contraseña de PostgreSQL es la de ejemplo de la documentación y ya no se acepta.",
+                f"Cámbiala con «ALTER ROLE {usuario} WITH PASSWORD 'tu-contraseña';» "
+                "(en psql: «\\password») y actualiza [base_datos] url o TAMALIO_BD_URL.",
+            )
+        return self.bd_url
 
     # ------------------------------------------------------------------ #
     @classmethod

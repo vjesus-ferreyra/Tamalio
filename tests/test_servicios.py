@@ -192,6 +192,59 @@ def test_configuracion_toml_y_entorno(tmp_path, monkeypatch):
     assert config.raiz_biblioteca.name == "quetzal"
 
 
+@pytest.fixture
+def sin_entorno_bd(monkeypatch):
+    """Quita las variables que podrían aportar una conexión o contraseña (p. ej. en el contenedor)."""
+    for variable in ("TAMALIO_BD_URL", "TAMALIO_CONFIG", "PGPASSWORD"):
+        monkeypatch.delenv(variable, raising=False)
+
+
+def test_configuracion_no_trae_conexion_predeterminada(sin_entorno_bd):
+    config = Configuracion()
+    assert config.bd_url is None
+    with pytest.raises(ErrorTamalio, match="No hay conexión") as error:
+        config.url_base_datos()
+    assert error.value.sugerencia and "TAMALIO_BD_URL" in error.value.sugerencia
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["postgresql://tamalio@localhost:5432/tamalio", "host=localhost dbname=tamalio user=tamalio"],
+)
+def test_configuracion_exige_contrasena(sin_entorno_bd, url):
+    with pytest.raises(ErrorTamalio, match="no tiene contraseña"):
+        Configuracion(bd_url=url).url_base_datos()
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["postgresql://tamalio:tamalio@localhost:5432/tamalio", "host=localhost user=tamalio password=tamalio"],
+)
+def test_configuracion_rechaza_la_contrasena_de_ejemplo(sin_entorno_bd, url):
+    with pytest.raises(ErrorTamalio, match="ya no se acepta") as error:
+        Configuracion(bd_url=url).url_base_datos()
+    assert error.value.sugerencia and "ALTER ROLE tamalio" in error.value.sugerencia
+
+
+def test_configuracion_rechaza_contrasena_de_ejemplo_en_pgpassword(sin_entorno_bd, monkeypatch):
+    monkeypatch.setenv("PGPASSWORD", "tamalio")
+    with pytest.raises(ErrorTamalio, match="ya no se acepta"):
+        Configuracion(bd_url="postgresql://tamalio@localhost/tamalio").url_base_datos()
+
+
+def test_configuracion_acepta_contrasena_propia(sin_entorno_bd, monkeypatch):
+    url = "postgresql://tamalio:Xq7%40tamalio@localhost:5432/tamalio"
+    assert Configuracion(bd_url=url).url_base_datos() == url
+    monkeypatch.setenv("PGPASSWORD", "otra-clave-propia")
+    sin_clave = "postgresql://tamalio@localhost:5432/tamalio"
+    assert Configuracion(bd_url=sin_clave).url_base_datos() == sin_clave
+
+
+def test_configuracion_rechaza_cadena_invalida(sin_entorno_bd):
+    with pytest.raises(ErrorTamalio, match="no es válida"):
+        Configuracion(bd_url="esto no es una conexión").url_base_datos()
+
+
 def test_configuracion_rechaza_opciones_desconocidas(tmp_path):
     fichero = tmp_path / "tamalio.toml"
     fichero.write_text("[red]\nvelocidad_luz = 1\n", encoding="utf-8")
