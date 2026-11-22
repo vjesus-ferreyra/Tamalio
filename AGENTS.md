@@ -171,6 +171,17 @@ Reglas que **no** se rompen:
   `RepositorioCatalogoPostgres._patron_contiene` y la consulta lleva
   `ESCAPE '\'`. Sin eso, `%` y `_` funcionan como comodines (buscar «%»
   devolvía todo el catálogo).
+- **Títulos de Bandcamp:** `track` a veces trae el número de pista pegado
+  («01 - Opening Credits», «06 -X-CaliBR8»). `ExtractorBandcamp._titulo_crudo`
+  lo quita solo si coincide con `track_number` o tiene ceros a la izquierda,
+  para no estropear títulos como «100 - Gecs».
+- **Carátula de álbumes de Bandcamp:** todas las pistas reciben la misma, la
+  que más se repite (se compara el identificador `a123…` de la imagen, no la
+  URL); en un empate, la de enlace exacto más repetido entre las empatadas.
+  Si todas son distintas o los enlaces también empatan,
+  `LectorCaratulaBandcamp` (Playwright) la lee de
+  `#tralbumArt` en la página del álbum. Ese lector nunca lanza excepciones y en
+  las pruebas se sustituye por `tests/dobles/lector_caratula_fijo.py`.
 - **yt-dlp y tipos:** sus `TypedDict` (`_Params`, `_InfoDict`) son parciales;
   adapta con `cast(Any, ...)` en el límite, no en todo el código.
 - **Cancelación:** yt-dlp no llama *hooks* mientras espera la red. Por eso

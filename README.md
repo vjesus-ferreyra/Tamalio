@@ -56,7 +56,12 @@ descargas cuando quieras, incluso desde otra terminal.
   año y **carátula en alta resolución** incrustada.
 - 🧠 **Limpieza inteligente** de metadatos por plataforma: quita «Artista - » y
   «(Official Music Video)» de los títulos, detecta invitados «feat.», descarta
-  años absurdos, separa géneros de ubicaciones en Bandcamp, etc.
+  años absurdos, separa géneros de ubicaciones en Bandcamp, quita el número
+  de pista pegado al título («01 - Opening Credits» → «Opening Credits»), etc.
+- 🖼️ **Una sola carátula por álbum**: si las pistas de un álbum de Bandcamp
+  traen imágenes distintas, se usa la que más se repite; en un empate, la de
+  enlace más repetido entre las empatadas. Si todas son distintas, o el empate
+  sigue, se lee la carátula de la página del álbum con Playwright.
 - 📂 **Biblioteca ordenada**: `~/Música/<usuario>/<Plataforma>/<Artista>/<Álbum (Año)>/01 - Canción.ext`.
 - 📋 **Descarga en masa** desde ficheros **JSONC** (con `$schema` y comentarios)
   o **texto plano**.
@@ -101,6 +106,7 @@ descargas cuando quieras, incluso desde otra terminal.
 | `psycopg` 3 | Acceso a PostgreSQL. |
 | `requests` | Descarga de carátulas. |
 | `mutagen` | Escritura de metadatos y carátulas. |
+| `playwright` | Leer la carátula de la página de un álbum de Bandcamp cuando cada pista trae una distinta. Necesita un navegador: `uv run playwright install chromium` (o Google Chrome instalado). |
 | `pytest` | Pruebas automatizadas. |
 
 ### Herramientas de desarrollo
@@ -177,7 +183,12 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 git clone https://github.com/vjesus-ferreyra/Tamalio.git
 cd tamalio
 uv sync            # Crea .venv con Python 3.15 e instala todo (incluye pytest y ruff)
+uv run playwright install chromium   # Navegador para las carátulas raras de Bandcamp
 ```
+
+En Linux, si Chromium no arranca por bibliotecas faltantes, instálalas con
+`sudo .venv/bin/playwright install-deps chromium`. Si ya tienes Google Chrome,
+Tamalio lo usa cuando falta el Chromium de Playwright.
 
 ### 3. Preparar PostgreSQL
 

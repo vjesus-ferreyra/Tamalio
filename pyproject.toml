@@ -28,6 +28,7 @@ dependencies = [
     "psycopg[binary]>=3.3",
     "requests>=2.32",
     "mutagen>=1.48",
+    "playwright>=1.65.2",
 ]
 
 [project.scripts]

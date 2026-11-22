@@ -66,7 +66,7 @@ ordena las importaciones al guardar, y Pylance revisa los tipos en modo
 | --- | --- |
 | Sistema | Ubuntu 24.04 (`mcr.microsoft.com/devcontainers/base`) |
 | Python | 3.15, instalado por uv según `pyproject.toml` |
-| Herramientas | uv, FFmpeg, QuickJS-ng (`qjs`), `psql`, GitHub CLI, servidor SSH |
+| Herramientas | uv, FFmpeg, QuickJS-ng (`qjs`), `psql`, GitHub CLI, servidor SSH, Chromium para Playwright |
 | Base de datos | PostgreSQL 18 en `localhost:5432` |
 | Extensiones de Zed | TOML, SQL, Dockerfile, Docker Compose y Mermaid |
 

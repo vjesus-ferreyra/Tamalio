@@ -33,6 +33,7 @@ from tamalio.servicios.etiquetador_audio import EtiquetadorAudio
 from tamalio.servicios.fabrica_lectores_fuentes import FabricaLectoresFuentes
 from tamalio.servicios.gestor_descargas import GestorDescargas
 from tamalio.servicios.gestor_sesiones import GestorSesiones
+from tamalio.servicios.lector_caratula_bandcamp import LectorCaratulaBandcamp
 from tamalio.servicios.organizador_biblioteca import OrganizadorBiblioteca
 from tamalio.servicios.temporizador_humano import TemporizadorHumano
 from tamalio.servicios.verificador_dependencias import VerificadorDependencias
@@ -185,7 +186,7 @@ class Aplicacion:
         gestor = GestorDescargas(
             config=config,
             fabrica_extractores=FabricaExtractores(
-                config.agregar_invitados_a_artistas, config.caratula_recortar_videos
+                config.agregar_invitados_a_artistas, config.caratula_recortar_videos, LectorCaratulaBandcamp()
             ),
             fabrica_cliente=lambda cookies: ClienteYtDlp(config, carpeta_trabajo, temporizador, cookies),
             caratulas=DescargadorCaratulas(config.carpeta_cache, ffmpeg, config.caratula_calidad_jpeg),

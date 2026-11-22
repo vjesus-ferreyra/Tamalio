@@ -104,7 +104,15 @@ classDiagram
     }
     class ExtractorYoutube
     class ExtractorSoundcloud
-    class ExtractorBandcamp
+    class ExtractorBandcamp {
+        #_titulo_crudo(entrada) str
+        #_caratula_coleccion(info, entradas) Caratula
+    }
+    class LectorCaratulaPagina {
+        <<interface>>
+        +url_caratula(url_pagina) str
+    }
+    class LectorCaratulaBandcamp
     class FabricaExtractores {
         +obtener(plataforma) Extractor
     }
@@ -112,6 +120,8 @@ classDiagram
     ExtractorBase <|-- ExtractorYoutube
     ExtractorBase <|-- ExtractorSoundcloud
     ExtractorBase <|-- ExtractorBandcamp
+    LectorCaratulaPagina <|-- LectorCaratulaBandcamp
+    ExtractorBandcamp o-- LectorCaratulaPagina
     FabricaExtractores o-- Extractor
 
     class Pista {
@@ -475,9 +485,9 @@ flowchart LR
     raiz --> cfg[configuracion/<br/>configuracion · rutas_sistema]
     raiz --> exc[excepciones/<br/>6 excepciones]
     raiz --> mod[modelos/<br/>15 entidades y enumeraciones]
-    raiz --> itf[interfaces/<br/>8 contratos abstractos]
+    raiz --> itf[interfaces/<br/>9 contratos abstractos]
     raiz --> ext[extractores/<br/>base · youtube · soundcloud · bandcamp · fábrica · contexto]
-    raiz --> srv[servicios/<br/>22 servicios]
+    raiz --> srv[servicios/<br/>23 servicios]
     raiz --> rep[repositorios/<br/>conexión + 3 repositorios]
     raiz --> ctl[controladores/<br/>4 controladores]
     raiz --> vis[vistas/<br/>consola · barra · estilos · argumentos · parser · registro]
