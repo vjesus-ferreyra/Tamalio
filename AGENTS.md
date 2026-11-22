@@ -161,6 +161,16 @@ Reglas que **no** se rompen:
   SQL dinámico con `sql.SQL(...).format(sql.Identifier(...))`, nunca con
   f-strings sobre texto variable. Todo pasa por `ConexionPostgres.ejecutar/una/todas`
   (que además registra el SQL en `--debug`).
+- **Contraseña de la BD:** no hay conexión ni contraseña predeterminada
+  (`Configuracion.bd_url` es `None`). La aplicación abre PostgreSQL con
+  `Configuracion.url_base_datos()`, que exige una contraseña propia (en la URL o
+  en `PGPASSWORD`) y rechaza las de `CONTRASENAS_BD_PROHIBIDAS`. No vuelvas a
+  escribir credenciales reales ni de ejemplo como `tamalio:tamalio` en el código
+  o la documentación; usa `TU_CONTRASEÑA`.
+- **Búsquedas `LIKE`/`ILIKE`:** el texto del usuario se escapa con
+  `RepositorioCatalogoPostgres._patron_contiene` y la consulta lleva
+  `ESCAPE '\'`. Sin eso, `%` y `_` funcionan como comodines (buscar «%»
+  devolvía todo el catálogo).
 - **yt-dlp y tipos:** sus `TypedDict` (`_Params`, `_InfoDict`) son parciales;
   adapta con `cast(Any, ...)` en el límite, no en todo el código.
 - **Cancelación:** yt-dlp no llama *hooks* mientras espera la red. Por eso

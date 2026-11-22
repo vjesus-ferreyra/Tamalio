@@ -8,8 +8,8 @@
 #   Windows  %APPDATA%\tamalio\tamalio.toml
 #
 # o indícalo con «tamalio --config RUTA» / la variable TAMALIO_CONFIG.
-# Todas las opciones son opcionales: los valores de abajo son los
-# predeterminados. Las variables de entorno TAMALIO_BD_URL,
+# Todas las opciones son opcionales y los valores de abajo son los
+# predeterminados, salvo [base_datos] url, que es obligatoria. Las variables de entorno TAMALIO_BD_URL,
 # TAMALIO_DESTINO y TAMALIO_USUARIO tienen prioridad sobre este fichero.
 # =====================================================================
 
@@ -74,5 +74,8 @@ calidad_jpeg = 2
 # bandcamp = "~/cookies/bandcamp.txt"
 
 [base_datos]
-# Cadena de conexión de PostgreSQL (libpq).
-url = "postgresql://tamalio:tamalio@localhost:5432/tamalio"
+# Cadena de conexión de PostgreSQL (libpq). OBLIGATORIA: no hay valor
+# predeterminado. Pon tu propia contraseña; «tamalio» se rechaza.
+# Si la contraseña tiene «@», «:» o «/», codifícalos (p. ej. «@» → «%40»),
+# o quítala de aquí y defínela en la variable PGPASSWORD.
+url = "postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio"

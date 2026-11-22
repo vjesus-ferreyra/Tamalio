@@ -3,6 +3,10 @@
 #
 # «app» comparte la red de «db» (network_mode: service:db), así que
 # PostgreSQL responde en localhost:5432, igual que en una instalación local.
+#
+# No hay contraseñas escritas aquí: «db» genera una aleatoria la primera vez
+# (postgres-arranque/arrancar-postgres.sh) y la deja en el volumen
+# «secretos-bd», de donde la lee post-create.sh en «app».
 
 services:
   app:
@@ -11,23 +15,26 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ../..:/workspaces:cached
+      - secretos-bd:/run/secretos-tamalio:ro
     # Mantiene vivo el contenedor; VS Code se conecta a él.
     command: sleep infinity
     network_mode: service:db
-    # PostgreSQL, uv, idioma y zona horaria.
+    # PostgreSQL (sin contraseña), uv, idioma y zona horaria.
     env_file: entorno.env
 
   db:
     image: postgres:18
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/arrancar-postgres.sh"]
     environment:
       POSTGRES_USER: tamalio
-      POSTGRES_PASSWORD: tamalio
       POSTGRES_DB: tamalio
       TZ: America/Mexico_City
     volumes:
       # Desde PostgreSQL 18 el volumen se monta en /var/lib/postgresql.
       - datos-postgres:/var/lib/postgresql
+      - secretos-bd:/run/secretos-tamalio
+      - ./postgres-arranque/arrancar-postgres.sh:/usr/local/bin/arrancar-postgres.sh:ro
       - ./postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tamalio -d tamalio"]
@@ -37,3 +44,4 @@ services:
 
 volumes:
   datos-postgres:
+  secretos-bd:

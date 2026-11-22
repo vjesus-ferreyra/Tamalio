@@ -39,7 +39,7 @@ class ConexionPostgres:
 
     Args:
         url: Cadena de conexión, p. ej.
-            ``postgresql://tamalio:tamalio@localhost:5432/tamalio``.
+            ``postgresql://tamalio:TU_CONTRASEÑA@localhost:5432/tamalio``.
     """
 
     def __init__(self, url: str) -> None:

@@ -18,7 +18,9 @@ jobs:
         image: postgres:18
         env:
           POSTGRES_USER: tamalio
-          POSTGRES_PASSWORD: tamalio
+          # Base desechable del ejecutor: una contraseña distinta en cada ejecución
+          # en lugar de una fija escrita en el repositorio.
+          POSTGRES_PASSWORD: pruebas-${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: tamalio_pruebas
         ports: ["5432:5432"]
         options: >-
@@ -27,7 +29,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      TAMALIO_BD_PRUEBAS: postgresql://tamalio:tamalio@localhost:5432/tamalio_pruebas
+      TAMALIO_BD_PRUEBAS: postgresql://tamalio:pruebas-${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/tamalio_pruebas
     steps:
       - uses: actions/checkout@v5
 

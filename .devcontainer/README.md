@@ -79,21 +79,31 @@ directamente en la terminal.
 | Dato | Valor |
 | --- | --- |
 | Servidor | `localhost:5432` |
-| Usuario y contraseña | `tamalio` / `tamalio` |
+| Usuario | `tamalio` |
+| Contraseña | Aleatoria, distinta en cada entorno |
 | Base del catálogo | `tamalio` |
 | Base de pruebas | `tamalio_pruebas` |
 
-Las variables `PGHOST`, `PGUSER`, `PGPASSWORD` y `PGDATABASE` ya están
-definidas en `entorno.env`, así que `psql` se conecta sin argumentos. Si tu
-configuración de Tamalio pide una cadena de conexión, usa
-`postgresql://tamalio:tamalio@localhost:5432/tamalio`.
+El repositorio no contiene ninguna contraseña. La primera vez que arranca, el
+servicio `db` genera una aleatoria (`postgres-arranque/arrancar-postgres.sh`)
+y la guarda en el volumen `secretos-bd`. Después, `post-create.sh` la lee, crea
+las tablas con `tamalio bd iniciar` y define en todas las terminales:
 
-`TAMALIO_BD_PRUEBAS` también está definida, así que `pytest` ejecuta las
-pruebas de PostgreSQL en lugar de omitirlas.
+- `PGPASSWORD`, junto con `PGHOST`, `PGUSER` y `PGDATABASE`, así que `psql` se
+  conecta sin argumentos.
+- `TAMALIO_BD_URL`, así que `tamalio` funciona sin configurar nada más.
+- `TAMALIO_BD_PRUEBAS`, así que `pytest` ejecuta las pruebas de PostgreSQL en
+  lugar de omitirlas.
 
-Los datos viven en el volumen `datos-postgres` y sobreviven a reinicios del
-contenedor. Para empezar de cero, borra el volumen o reconstruye el
-contenedor.
+Para ver la contraseña, ejecuta `echo "$PGPASSWORD"` en la terminal.
+
+Los datos viven en el volumen `datos-postgres` y la contraseña en
+`secretos-bd`; ambos sobreviven a reinicios del contenedor. Para empezar de
+cero, borra los dos volúmenes o reconstruye el contenedor.
+
+> **Si ya habías creado el contenedor antes de este cambio**, tu base se creó
+> con la contraseña anterior y no coincidirá con la nueva. Borra el volumen
+> `datos-postgres` (o reconstruye el codespace) para que se cree otra vez.
 
 ## Avisos
 

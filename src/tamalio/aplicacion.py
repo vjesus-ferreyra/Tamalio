@@ -160,10 +160,10 @@ class Aplicacion:
     # Construcción de objetos
     # ================================================================== #
     def _bd(self) -> ConexionPostgres:
-        """Conexión perezosa: solo se abre si el comando la necesita."""
+        """Conexión perezosa: solo se abre si el comando la necesita (y exige contraseña propia)."""
         if self._conexion is None:
             assert self._config is not None
-            self._conexion = ConexionPostgres(self._config.bd_url)
+            self._conexion = ConexionPostgres(self._config.url_base_datos())
         return self._conexion
 
     def _controlador_descargas(self) -> ControladorDescargas:

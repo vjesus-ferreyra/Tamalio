@@ -78,6 +78,21 @@ def test_resumen_oculta_la_contrasena():
     assert config.resumen()["bd_url"] == "postgresql://tamalio:****@localhost:5432/tamalio"
 
 
+@pytest.mark.parametrize(
+    ("url", "esperada"),
+    [
+        ("host=localhost password=secreta dbname=t", "host=localhost password=**** dbname=t"),
+        ("host=localhost password = 'con espacio' dbname=t", "host=localhost password = **** dbname=t"),
+    ],
+)
+def test_resumen_oculta_la_contrasena_en_formato_clave_valor(url, esperada):
+    assert Configuracion(bd_url=url).resumen()["bd_url"] == esperada
+
+
+def test_resumen_sin_conexion_configurada():
+    assert Configuracion().resumen()["bd_url"] is None
+
+
 def test_debug_por_variable_de_entorno(monkeypatch):
     monkeypatch.setenv("TAMALIO_DEBUG", "1")
     config = Configuracion()
